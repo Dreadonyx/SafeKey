@@ -6,8 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
         content="SafeKey - A local-only, encrypted password manager. No cloud, no syncing, complete security.">
+    <meta name="theme-color" content="#14b8a6">
     <title>SafeKey - Secure Password Manager</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
@@ -26,6 +29,10 @@
                     <span class="nav-icon"></span>
                     <span class="nav-text">Vault</span>
                 </li>
+                <li class="nav-item" data-view="health">
+                    <span class="nav-icon"></span>
+                    <span class="nav-text">Health</span>
+                </li>
                 <li class="nav-item" data-view="analyzer">
                     <span class="nav-icon"></span>
                     <span class="nav-text">Analyzer</span>
@@ -36,6 +43,10 @@
                 </li>
             </ul>
             <div class="sidebar-footer">
+                <button class="settings-btn" id="settingsBtn">
+                    <span class="settings-icon"></span>
+                    <span>Settings</span>
+                </button>
                 <button class="lock-btn" id="lockBtn">
                     <span class="lock-icon"></span>
                     <span>Lock Vault</span>
@@ -164,9 +175,21 @@
                         <span>+</span> Add Credential
                     </button>
                 </div>
-                <div class="search-bar">
-                    <input type="text" id="vaultSearch" placeholder="Search credentials...">
-                    <span class="search-icon"></span>
+                <div class="vault-controls">
+                    <div class="search-bar">
+                        <input type="text" id="vaultSearch" placeholder="Search credentials... (/)">
+                        <span class="search-icon"></span>
+                    </div>
+                    <div class="filter-bar" id="categoryFilter">
+                        <button class="filter-chip active" data-category="all">All</button>
+                        <button class="filter-chip" data-category="work">Work</button>
+                        <button class="filter-chip" data-category="social">Social</button>
+                        <button class="filter-chip" data-category="banking">Banking</button>
+                        <button class="filter-chip" data-category="shopping">Shopping</button>
+                        <button class="filter-chip" data-category="email">Email</button>
+                        <button class="filter-chip" data-category="gaming">Gaming</button>
+                        <button class="filter-chip" data-category="other">Other</button>
+                    </div>
                 </div>
                 <div class="credentials-list" id="credentialsList">
                     <!-- Credentials will be rendered here -->
@@ -175,6 +198,17 @@
                     <span class="empty-icon"></span>
                     <h2>Your vault is empty</h2>
                     <p>Add your first credential to get started</p>
+                </div>
+            </div>
+
+            <!-- Health View -->
+            <div class="view hidden" id="healthView">
+                <div class="view-header">
+                    <h1>Vault Health</h1>
+                    <p class="view-subtitle">Security overview of your stored passwords</p>
+                </div>
+                <div id="healthContent">
+                    <!-- Rendered dynamically -->
                 </div>
             </div>
 
@@ -331,7 +365,24 @@
                 <input type="hidden" id="credentialId">
                 <div class="form-group">
                     <label for="credentialSite">Website / App</label>
-                    <input type="text" id="credentialSite" placeholder="e.g., github.com" required>
+                    <input type="text" id="credentialSite" placeholder="e.g., GitHub" required>
+                </div>
+                <div class="form-group">
+                    <label for="credentialUrl">URL (optional)</label>
+                    <input type="url" id="credentialUrl" placeholder="e.g., https://github.com">
+                </div>
+                <div class="form-group">
+                    <label for="credentialCategory">Category</label>
+                    <select id="credentialCategory">
+                        <option value="">— Select category —</option>
+                        <option value="work">Work</option>
+                        <option value="social">Social</option>
+                        <option value="banking">Banking</option>
+                        <option value="shopping">Shopping</option>
+                        <option value="email">Email</option>
+                        <option value="gaming">Gaming</option>
+                        <option value="other">Other</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="credentialUsername">Username / Email</label>
@@ -345,6 +396,10 @@
                         <button type="button" class="icon-btn generate-inline" id="generateInlineBtn"
                             title="Generate">⚡</button>
                     </div>
+                    <div class="breach-check-row">
+                        <button type="button" class="btn-breach-check" id="breachCheckBtn">🔍 Check for data breaches</button>
+                        <span class="breach-result hidden" id="breachResult"></span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="credentialNotes">Notes (optional)</label>
@@ -355,6 +410,55 @@
                     <button type="submit" class="btn btn-primary">Save</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay hidden" id="settingsModal">
+        <div class="modal glass modal-wide">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" id="closeSettings">&times;</button>
+            </div>
+
+            <div class="settings-section">
+                <h3 class="settings-section-title">Change Master Key</h3>
+                <form id="changeMasterKeyForm" class="auth-form" autocomplete="off">
+                    <div class="form-group">
+                        <label for="currentMasterKey">Current Master Key</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="currentMasterKey" placeholder="Enter current key" autocomplete="current-password">
+                            <button type="button" class="toggle-password" data-target="currentMasterKey"></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="newMasterKey">New Master Key</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="newMasterKey" placeholder="Enter new master key" autocomplete="new-password">
+                            <button type="button" class="toggle-password" data-target="newMasterKey"></button>
+                        </div>
+                        <div class="password-strength-mini" id="newMasterKeyStrength"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmNewMasterKey">Confirm New Master Key</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="confirmNewMasterKey" placeholder="Confirm new master key" autocomplete="new-password">
+                            <button type="button" class="toggle-password" data-target="confirmNewMasterKey"></button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full">Change Master Key</button>
+                </form>
+            </div>
+
+            <div class="settings-section">
+                <h3 class="settings-section-title">Backup & Restore</h3>
+                <p class="settings-description">Export your encrypted vault as a JSON file for safekeeping, or restore from a previous backup.</p>
+                <div class="settings-actions">
+                    <button class="btn btn-secondary" id="exportVaultBtn">Export Vault</button>
+                    <label class="btn btn-secondary settings-import-label" for="importVaultFile">Import Vault</label>
+                    <input type="file" id="importVaultFile" accept=".json" style="display:none">
+                </div>
+            </div>
         </div>
     </div>
 

@@ -1,0 +1,18 @@
+{
+  "name": "SafeKey - Password Manager",
+  "short_name": "SafeKey",
+  "description": "Local-only encrypted password manager. No cloud, no syncing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#14b8a6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
