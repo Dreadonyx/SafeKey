@@ -141,12 +141,12 @@ const Generator = (function () {
             password += syllable;
 
             // Add number occasionally
-            if (config.numbers && Math.random() > 0.7) {
+            if (config.numbers && secureRandomFloat() > 0.7) {
                 password += secureRandomInt(10);
             }
 
             // Add separator
-            if (password.length < config.length - 3 && Math.random() > 0.6) {
+            if (password.length < config.length - 3 && secureRandomFloat() > 0.6) {
                 password += config.symbols ? '-' : '';
             }
         }
@@ -184,7 +184,7 @@ const Generator = (function () {
         if (config.symbols || config.numbers) {
             result = result.split('').map(char => {
                 const lower = char.toLowerCase();
-                if (transforms[lower] && Math.random() > 0.5) {
+                if (transforms[lower] && secureRandomFloat() > 0.5) {
                     return transforms[lower];
                 }
                 return char;
@@ -237,6 +237,16 @@ const Generator = (function () {
     }
 
     /**
+     * Generates a cryptographically secure random float in [0, 1)
+     * @returns {number}
+     */
+    function secureRandomFloat() {
+        const array = new Uint32Array(1);
+        crypto.getRandomValues(array);
+        return array[0] / (0xFFFFFFFF + 1);
+    }
+
+    /**
      * Shuffles a string using Fisher-Yates algorithm
      * @param {string} str
      * @returns {string}
@@ -257,7 +267,7 @@ const Generator = (function () {
      */
     function capitalizeRandom(str) {
         return str.split('').map(char => {
-            if (/[a-z]/.test(char) && Math.random() > 0.7) {
+            if (/[a-z]/.test(char) && secureRandomFloat() > 0.7) {
                 return char.toUpperCase();
             }
             return char;
