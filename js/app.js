@@ -323,7 +323,7 @@ const App = (function () {
             const categoryBadge = cred.category
                 ? `<span class="category-badge">${escapeHtml(cred.category)}</span>`
                 : '';
-            const urlLink = cred.url
+            const urlLink = cred.url && isSafeUrl(cred.url)
                 ? `<a class="credential-url" href="${escapeHtml(cred.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(cred.url)}">↗ Open</a>`
                 : '';
 
@@ -366,7 +366,11 @@ const App = (function () {
                     passwordEl.innerHTML = '<span class="password-hidden">••••••••</span>';
                     btn.textContent = '👁️';
                 } else {
-                    passwordEl.innerHTML = `<span class="password-visible">${escapeHtml(cred.password)}</span>`;
+                    const span = document.createElement('span');
+                    span.className = 'password-visible';
+                    span.textContent = cred.password;
+                    passwordEl.innerHTML = '';
+                    passwordEl.appendChild(span);
                     btn.textContent = '🙈';
                 }
             });
@@ -495,7 +499,14 @@ const App = (function () {
             const prefix = hash.substring(0, 5);
             const suffix = hash.substring(5);
 
-            const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            let response;
+            try {
+                response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, { signal: controller.signal });
+            } finally {
+                clearTimeout(timeoutId);
+            }
             if (!response.ok) throw new Error('API error');
 
             const text = await response.text();
@@ -757,6 +768,15 @@ const App = (function () {
         const div = document.createElement('div');
         div.textContent = str || '';
         return div.innerHTML;
+    }
+
+    function isSafeUrl(url) {
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        } catch {
+            return false;
+        }
     }
 
     function formatAge(timestamp) {
