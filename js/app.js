@@ -1,6 +1,6 @@
 /**
  * SafeKey Main Application Controller
- * 
+ *
  * Handles:
  * - SPA routing between views
  * - First-run detection and setup flow
@@ -11,48 +11,41 @@
 const App = (function () {
     'use strict';
 
-    // DOM Elements
     const elements = {};
-
-    // Current state
     let currentView = null;
     let editingCredentialId = null;
+    let activeCategory = 'all';
 
-    /**
-     * Initializes the application
-     */
     async function init() {
         cacheElements();
         bindEvents();
-
-        // Set up session lock callback
         Session.onLock(handleVaultLock);
-
-        // Always start at landing page
         showView('landing');
-
+        registerServiceWorker();
         console.log('[SafeKey] Application initialized');
     }
 
-    /**
-     * Caches DOM elements for performance
-     */
+    function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+    }
+
     function cacheElements() {
-        // Views
         elements.landingView = document.getElementById('landingView');
         elements.setupView = document.getElementById('setupView');
         elements.unlockView = document.getElementById('unlockView');
         elements.vaultView = document.getElementById('vaultView');
+        elements.healthView = document.getElementById('healthView');
         elements.analyzerView = document.getElementById('analyzerView');
         elements.generatorView = document.getElementById('generatorView');
         elements.sidebar = document.getElementById('sidebar');
 
-        // Forms
         elements.setupForm = document.getElementById('setupForm');
         elements.unlockForm = document.getElementById('unlockForm');
         elements.credentialForm = document.getElementById('credentialForm');
+        elements.changeMasterKeyForm = document.getElementById('changeMasterKeyForm');
 
-        // Inputs
         elements.masterKeySetup = document.getElementById('masterKeySetup');
         elements.usernameSetup = document.getElementById('usernameSetup');
         elements.masterKeyConfirm = document.getElementById('masterKeyConfirm');
@@ -60,7 +53,6 @@ const App = (function () {
         elements.vaultSearch = document.getElementById('vaultSearch');
         elements.analyzerInput = document.getElementById('analyzerInput');
 
-        // Generator elements
         elements.passwordLength = document.getElementById('passwordLength');
         elements.lengthValue = document.getElementById('lengthValue');
         elements.memorability = document.getElementById('memorability');
@@ -71,69 +63,88 @@ const App = (function () {
         elements.includeSymbols = document.getElementById('includeSymbols');
         elements.keywordInput = document.getElementById('keywordInput');
 
-        // Buttons
         elements.lockBtn = document.getElementById('lockBtn');
+        elements.settingsBtn = document.getElementById('settingsBtn');
         elements.addCredentialBtn = document.getElementById('addCredentialBtn');
         elements.generateBtn = document.getElementById('generateBtn');
         elements.copyPasswordBtn = document.getElementById('copyPasswordBtn');
         elements.regenerateBtn = document.getElementById('regenerateBtn');
         elements.generateInlineBtn = document.getElementById('generateInlineBtn');
+        elements.breachCheckBtn = document.getElementById('breachCheckBtn');
+        elements.breachResult = document.getElementById('breachResult');
+        elements.exportVaultBtn = document.getElementById('exportVaultBtn');
+        elements.importVaultFile = document.getElementById('importVaultFile');
 
-        // Landing page buttons
         elements.generateVaultBtn = document.getElementById('generateVaultBtn');
         elements.openVaultBtn = document.getElementById('openVaultBtn');
         elements.backFromSetup = document.getElementById('backFromSetup');
         elements.backFromUnlock = document.getElementById('backFromUnlock');
 
-        // Modal
         elements.credentialModal = document.getElementById('credentialModal');
         elements.closeModal = document.getElementById('closeModal');
         elements.cancelModal = document.getElementById('cancelModal');
         elements.modalTitle = document.getElementById('modalTitle');
 
-        // Other
+        elements.settingsModal = document.getElementById('settingsModal');
+        elements.closeSettings = document.getElementById('closeSettings');
+
         elements.credentialsList = document.getElementById('credentialsList');
         elements.emptyVault = document.getElementById('emptyVault');
         elements.unlockError = document.getElementById('unlockError');
         elements.setupStrength = document.getElementById('setupStrength');
+        elements.newMasterKeyStrength = document.getElementById('newMasterKeyStrength');
         elements.toast = document.getElementById('toast');
+        elements.healthContent = document.getElementById('healthContent');
+        elements.categoryFilter = document.getElementById('categoryFilter');
     }
 
-    /**
-     * Binds event listeners
-     */
     function bindEvents() {
-        // Landing page navigation
         elements.generateVaultBtn.addEventListener('click', () => showView('setup'));
         elements.openVaultBtn.addEventListener('click', () => showView('unlock'));
         elements.backFromSetup.addEventListener('click', () => showView('landing'));
         elements.backFromUnlock.addEventListener('click', () => showView('landing'));
 
-        // Navigation
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', () => {
                 const view = item.dataset.view;
-                if (Session.isUnlocked()) {
-                    navigateTo(view);
-                }
+                if (Session.isUnlocked()) navigateTo(view);
             });
         });
 
-        // Setup form
         elements.setupForm.addEventListener('submit', handleSetup);
-        elements.masterKeySetup.addEventListener('input', handleSetupPasswordInput);
+        elements.masterKeySetup.addEventListener('input', () => {
+            const analysis = Analyzer.analyze(elements.masterKeySetup.value);
+            elements.setupStrength.style.setProperty('--strength', analysis.strength + '%');
+        });
 
-        // Unlock form
         elements.unlockForm.addEventListener('submit', handleUnlock);
-
-        // Lock button
         elements.lockBtn.addEventListener('click', () => Session.lock());
 
-        // Vault
+        elements.settingsBtn.addEventListener('click', openSettingsModal);
+        elements.closeSettings.addEventListener('click', closeSettingsModal);
+        elements.settingsModal.addEventListener('click', (e) => {
+            if (e.target === elements.settingsModal) closeSettingsModal();
+        });
+        elements.changeMasterKeyForm.addEventListener('submit', handleChangeMasterKey);
+        document.getElementById('newMasterKey').addEventListener('input', () => {
+            const analysis = Analyzer.analyze(document.getElementById('newMasterKey').value);
+            elements.newMasterKeyStrength.style.setProperty('--strength', analysis.strength + '%');
+        });
+        elements.exportVaultBtn.addEventListener('click', handleExportVault);
+        elements.importVaultFile.addEventListener('change', handleImportVault);
+
         elements.addCredentialBtn.addEventListener('click', () => openCredentialModal());
         elements.vaultSearch.addEventListener('input', handleSearch);
 
-        // Credential modal
+        elements.categoryFilter.addEventListener('click', (e) => {
+            const chip = e.target.closest('.filter-chip');
+            if (!chip) return;
+            activeCategory = chip.dataset.category;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            loadCredentials();
+        });
+
         elements.credentialForm.addEventListener('submit', handleCredentialSubmit);
         elements.closeModal.addEventListener('click', closeCredentialModal);
         elements.cancelModal.addEventListener('click', closeCredentialModal);
@@ -141,11 +152,11 @@ const App = (function () {
             if (e.target === elements.credentialModal) closeCredentialModal();
         });
         elements.generateInlineBtn.addEventListener('click', () => {
-            const generated = Generator.generate({ length: 16 });
-            document.getElementById('credentialPassword').value = generated.password;
+            document.getElementById('credentialPassword').value = Generator.generate({ length: 16 }).password;
+            elements.breachResult.classList.add('hidden');
         });
+        elements.breachCheckBtn.addEventListener('click', handleBreachCheck);
 
-        // Password toggles
         document.querySelectorAll('.toggle-password').forEach(btn => {
             btn.addEventListener('click', () => {
                 const target = document.getElementById(btn.dataset.target);
@@ -159,10 +170,8 @@ const App = (function () {
             });
         });
 
-        // Analyzer
         elements.analyzerInput.addEventListener('input', handleAnalyzerInput);
 
-        // Generator
         elements.passwordLength.addEventListener('input', () => {
             elements.lengthValue.textContent = elements.passwordLength.value;
         });
@@ -170,34 +179,47 @@ const App = (function () {
         elements.regenerateBtn.addEventListener('click', handleGenerate);
         elements.copyPasswordBtn.addEventListener('click', handleCopyPassword);
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Escape closes modal
-            if (e.key === 'Escape' && !elements.credentialModal.classList.contains('hidden')) {
-                closeCredentialModal();
-            }
-        });
+        document.addEventListener('keydown', handleGlobalKeydown);
     }
 
-    /**
-     * Shows a specific view
-     * @param {string} viewName
-     */
-    function showView(viewName) {
-        // Hide all views
-        [elements.landingView, elements.setupView, elements.unlockView, elements.vaultView,
-        elements.analyzerView, elements.generatorView].forEach(view => {
-            view.classList.add('hidden');
-        });
+    function handleGlobalKeydown(e) {
+        // Escape closes any open modal
+        if (e.key === 'Escape') {
+            if (!elements.credentialModal.classList.contains('hidden')) closeCredentialModal();
+            if (!elements.settingsModal.classList.contains('hidden')) closeSettingsModal();
+            return;
+        }
 
-        // Show/hide sidebar based on auth state
-        if (viewName === 'landing' || viewName === 'setup' || viewName === 'unlock') {
+        // Don't trigger shortcuts if typing in an input
+        const tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+        if (!Session.isUnlocked()) return;
+
+        if (e.key === 'n' && currentView === 'vault') {
+            e.preventDefault();
+            openCredentialModal();
+        } else if (e.key === '/' && currentView === 'vault') {
+            e.preventDefault();
+            elements.vaultSearch.focus();
+        } else if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+            e.preventDefault();
+            Session.lock();
+        }
+    }
+
+    function showView(viewName) {
+        [elements.landingView, elements.setupView, elements.unlockView, elements.vaultView,
+            elements.healthView, elements.analyzerView, elements.generatorView].forEach(view => {
+                view.classList.add('hidden');
+            });
+
+        if (['landing', 'setup', 'unlock'].includes(viewName)) {
             elements.sidebar.classList.add('hidden');
         } else {
             elements.sidebar.classList.remove('hidden');
         }
 
-        // Show requested view
         const view = document.getElementById(viewName + 'View');
         if (view) {
             view.classList.remove('hidden');
@@ -205,49 +227,24 @@ const App = (function () {
         }
     }
 
-    /**
-     * Navigates to a view (for authenticated views)
-     * @param {string} viewName
-     */
     function navigateTo(viewName) {
-        // Update nav active state
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.view === viewName);
         });
-
         showView(viewName);
-
-        // Load view-specific content
-        if (viewName === 'vault') {
-            loadCredentials();
-        }
+        if (viewName === 'vault') loadCredentials();
+        if (viewName === 'health') loadHealthView();
     }
 
-    /**
-     * Handles master key setup
-     * @param {Event} e
-     */
     async function handleSetup(e) {
         e.preventDefault();
-
         const username = elements.usernameSetup.value.trim();
         const password = elements.masterKeySetup.value;
         const confirm = elements.masterKeyConfirm.value;
 
-        if (!username) {
-            showToast('Username is required', 'error');
-            return;
-        }
-
-        if (password !== confirm) {
-            showToast('Passwords do not match', 'error');
-            return;
-        }
-
-        if (password.length < 8) {
-            showToast('Master key must be at least 8 characters', 'error');
-            return;
-        }
+        if (!username) return showToast('Username is required', 'error');
+        if (password !== confirm) return showToast('Passwords do not match', 'error');
+        if (password.length < 8) return showToast('Master key must be at least 8 characters', 'error');
 
         try {
             const result = await Vault.initialize(username, password);
@@ -264,24 +261,9 @@ const App = (function () {
         }
     }
 
-    /**
-     * Handles setup password input for strength indicator
-     */
-    function handleSetupPasswordInput() {
-        const password = elements.masterKeySetup.value;
-        const analysis = Analyzer.analyze(password);
-        elements.setupStrength.style.setProperty('--strength', analysis.strength + '%');
-    }
-
-    /**
-     * Handles vault unlock
-     * @param {Event} e
-     */
     async function handleUnlock(e) {
         e.preventDefault();
-
         const password = elements.masterKeyUnlock.value;
-
         try {
             const result = await Vault.unlock(password);
             if (result.success) {
@@ -294,51 +276,70 @@ const App = (function () {
                 elements.unlockError.classList.remove('hidden');
                 elements.masterKeyUnlock.value = '';
             }
-        } catch (error) {
-            console.error('[App] Unlock error:', error);
+        } catch {
             elements.unlockError.classList.remove('hidden');
         }
     }
 
-    /**
-     * Handles vault lock
-     */
     function handleVaultLock() {
         showView('landing');
         showToast('Vault locked', 'info');
     }
 
-    /**
-     * Loads and displays credentials
-     */
+    // ─── Vault view ───────────────────────────────────────────────────────────
+
     async function loadCredentials() {
         try {
-            const credentials = await Vault.getAll();
+            let credentials = await Vault.getAll();
+            if (activeCategory !== 'all') {
+                credentials = credentials.filter(c => c.category === activeCategory);
+            }
+            const query = elements.vaultSearch.value.trim();
+            if (query) {
+                const lq = query.toLowerCase();
+                credentials = credentials.filter(c =>
+                    c.site.toLowerCase().includes(lq) ||
+                    c.username.toLowerCase().includes(lq) ||
+                    (c.url || '').toLowerCase().includes(lq)
+                );
+            }
             renderCredentials(credentials);
         } catch (error) {
             console.error('[App] Failed to load credentials:', error);
         }
     }
 
-    /**
-     * Renders credentials list
-     * @param {Array} credentials
-     */
     function renderCredentials(credentials) {
         if (credentials.length === 0) {
             elements.credentialsList.innerHTML = '';
             elements.emptyVault.classList.remove('hidden');
             return;
         }
-
         elements.emptyVault.classList.add('hidden');
 
-        elements.credentialsList.innerHTML = credentials.map(cred => `
+        elements.credentialsList.innerHTML = credentials.map(cred => {
+            const age = formatAge(cred.updatedAt);
+            const ageClass = isOld(cred.updatedAt) ? ' old' : '';
+            const categoryBadge = cred.category
+                ? `<span class="category-badge">${escapeHtml(cred.category)}</span>`
+                : '';
+            const urlLink = cred.url
+                ? `<a class="credential-url" href="${escapeHtml(cred.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(cred.url)}">↗ Open</a>`
+                : '';
+
+            return `
             <div class="credential-card" data-id="${cred.id}">
                 <div class="credential-icon">${getInitials(cred.site)}</div>
                 <div class="credential-info">
-                    <div class="credential-site">${escapeHtml(cred.site)}</div>
+                    <div class="credential-site-row">
+                        <span class="credential-site">${escapeHtml(cred.site)}</span>
+                        ${urlLink}
+                    </div>
                     <div class="credential-username">${escapeHtml(cred.username)}</div>
+                    <div class="credential-meta">
+                        ${categoryBadge}
+                        <span class="credential-age${ageClass}">${age}</span>
+                    </div>
                     <div class="credential-password">
                         <span class="password-hidden">••••••••</span>
                     </div>
@@ -349,24 +350,18 @@ const App = (function () {
                     <button class="icon-btn edit-btn" title="Edit" data-id="${cred.id}">✏️</button>
                     <button class="icon-btn delete-btn" title="Delete" data-id="${cred.id}">🗑️</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
-        // Bind credential action events
         bindCredentialEvents();
     }
 
-    /**
-     * Binds events to credential cards
-     */
     function bindCredentialEvents() {
-        // Reveal password
         document.querySelectorAll('.reveal-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const card = btn.closest('.credential-card');
                 const passwordEl = card.querySelector('.credential-password');
                 const cred = await Vault.getById(btn.dataset.id);
-
                 if (passwordEl.querySelector('.password-visible')) {
                     passwordEl.innerHTML = '<span class="password-hidden">••••••••</span>';
                     btn.textContent = '👁️';
@@ -377,20 +372,15 @@ const App = (function () {
             });
         });
 
-        // Copy password
         document.querySelectorAll('.copy-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const cred = await Vault.getById(btn.dataset.id);
                 const success = await Vault.copyToClipboard(cred.password);
-                if (success) {
-                    showToast('Password copied (auto-clears in 30s)', 'success');
-                } else {
-                    showToast('Failed to copy', 'error');
-                }
+                if (success) showToast('Password copied (auto-clears in 30s)', 'success');
+                else showToast('Failed to copy', 'error');
             });
         });
 
-        // Edit credential
         document.querySelectorAll('.edit-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const cred = await Vault.getById(btn.dataset.id);
@@ -398,10 +388,9 @@ const App = (function () {
             });
         });
 
-        // Delete credential
         document.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-                if (confirm('Are you sure you want to delete this credential?')) {
+                if (confirm('Delete this credential?')) {
                     await Vault.remove(btn.dataset.id);
                     loadCredentials();
                     showToast('Credential deleted', 'success');
@@ -410,47 +399,52 @@ const App = (function () {
         });
     }
 
-    /**
-     * Opens the credential modal
-     * @param {Object} credential - Optional credential for editing
-     */
+    async function handleSearch() {
+        loadCredentials();
+    }
+
+    // ─── Credential Modal ─────────────────────────────────────────────────────
+
     function openCredentialModal(credential = null) {
         editingCredentialId = credential?.id || null;
-
         elements.modalTitle.textContent = credential ? 'Edit Credential' : 'Add Credential';
-
         document.getElementById('credentialId').value = credential?.id || '';
         document.getElementById('credentialSite').value = credential?.site || '';
+        document.getElementById('credentialUrl').value = credential?.url || '';
+        document.getElementById('credentialCategory').value = credential?.category || '';
         document.getElementById('credentialUsername').value = credential?.username || '';
         document.getElementById('credentialPassword').value = credential?.password || '';
         document.getElementById('credentialNotes').value = credential?.notes || '';
-
+        elements.breachResult.classList.add('hidden');
         elements.credentialModal.classList.remove('hidden');
         document.getElementById('credentialSite').focus();
     }
 
-    /**
-     * Closes the credential modal
-     */
     function closeCredentialModal() {
         elements.credentialModal.classList.add('hidden');
         elements.credentialForm.reset();
+        elements.breachResult.classList.add('hidden');
         editingCredentialId = null;
     }
 
-    /**
-     * Handles credential form submission
-     * @param {Event} e
-     */
     async function handleCredentialSubmit(e) {
         e.preventDefault();
-
         const credential = {
             site: document.getElementById('credentialSite').value,
+            url: document.getElementById('credentialUrl').value,
+            category: document.getElementById('credentialCategory').value,
             username: document.getElementById('credentialUsername').value,
             password: document.getElementById('credentialPassword').value,
             notes: document.getElementById('credentialNotes').value
         };
+
+        // Duplicate password detection
+        const dupes = await findDuplicatePassword(credential.password, editingCredentialId);
+        if (dupes.length > 0) {
+            const sites = dupes.map(c => c.site).join(', ');
+            showToast(`⚠️ Password reused on: ${sites}`, 'warning');
+            // Don't block — just warn
+        }
 
         try {
             if (editingCredentialId) {
@@ -460,7 +454,6 @@ const App = (function () {
                 await Vault.add(credential);
                 showToast('Credential added', 'success');
             }
-
             closeCredentialModal();
             loadCredentials();
         } catch (error) {
@@ -469,59 +462,263 @@ const App = (function () {
         }
     }
 
-    /**
-     * Handles vault search
-     */
-    async function handleSearch() {
-        const query = elements.vaultSearch.value.trim();
+    async function findDuplicatePassword(password, excludeId = null) {
+        if (!password) return [];
+        const all = await Vault.getAll();
+        return all.filter(c => c.password === password && c.id !== excludeId);
+    }
 
-        if (query === '') {
-            loadCredentials();
+    // ─── Breach Check (HIBP k-anonymity) ─────────────────────────────────────
+
+    async function sha1Hex(text) {
+        const buffer = new TextEncoder().encode(text);
+        const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
+        return Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('')
+            .toUpperCase();
+    }
+
+    async function handleBreachCheck() {
+        const password = document.getElementById('credentialPassword').value;
+        if (!password) {
+            showToast('Enter a password to check', 'warning');
             return;
         }
 
-        const results = await Vault.search(query);
-        renderCredentials(results);
+        elements.breachCheckBtn.textContent = '⏳ Checking...';
+        elements.breachCheckBtn.disabled = true;
+        elements.breachResult.classList.add('hidden');
+
+        try {
+            const hash = await sha1Hex(password);
+            const prefix = hash.substring(0, 5);
+            const suffix = hash.substring(5);
+
+            const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`);
+            if (!response.ok) throw new Error('API error');
+
+            const text = await response.text();
+            let count = 0;
+            for (const line of text.split('\n')) {
+                const [h, c] = line.split(':');
+                if (h.trim() === suffix) {
+                    count = parseInt(c.trim());
+                    break;
+                }
+            }
+
+            elements.breachResult.classList.remove('hidden');
+            if (count > 0) {
+                elements.breachResult.textContent = `⚠️ Found in ${count.toLocaleString()} breaches!`;
+                elements.breachResult.className = 'breach-result breach-bad';
+            } else {
+                elements.breachResult.textContent = '✓ Not found in known breaches';
+                elements.breachResult.className = 'breach-result breach-good';
+            }
+        } catch {
+            elements.breachResult.classList.remove('hidden');
+            elements.breachResult.textContent = '⚠️ Could not reach breach API';
+            elements.breachResult.className = 'breach-result breach-warn';
+        } finally {
+            elements.breachCheckBtn.textContent = '🔍 Check for data breaches';
+            elements.breachCheckBtn.disabled = false;
+        }
     }
 
-    /**
-     * Handles analyzer input
-     */
+    // ─── Health View ──────────────────────────────────────────────────────────
+
+    async function loadHealthView() {
+        elements.healthContent.innerHTML = '<p style="color:var(--text-muted)">Analyzing vault...</p>';
+
+        const all = await Vault.getAll();
+        if (all.length === 0) {
+            elements.healthContent.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon"></span>
+                    <h2>No credentials yet</h2>
+                    <p>Add passwords to your vault to see health analysis</p>
+                </div>`;
+            return;
+        }
+
+        // Categorize issues
+        const weak = all.filter(c => Analyzer.analyze(c.password).strength < 40);
+        const old = all.filter(c => isOld(c.updatedAt));
+
+        // Detect reused passwords
+        const passMap = {};
+        all.forEach(c => {
+            if (!passMap[c.password]) passMap[c.password] = [];
+            passMap[c.password].push(c);
+        });
+        const reused = all.filter(c => passMap[c.password].length > 1);
+
+        const score = Math.max(0, 100 - (weak.length * 15) - (reused.length * 10) - (old.length * 5));
+
+        elements.healthContent.innerHTML = `
+            <div class="health-score-row">
+                <div class="health-score-card glass">
+                    <div class="health-score-number ${score >= 80 ? 'score-good' : score >= 50 ? 'score-warn' : 'score-bad'}">${score}</div>
+                    <div class="health-score-label">Security Score</div>
+                    <div class="health-score-sub">${score >= 80 ? 'Great shape' : score >= 50 ? 'Needs attention' : 'Action required'}</div>
+                </div>
+            </div>
+            <div class="health-stats">
+                <div class="health-stat">
+                    <div class="health-stat-number">${all.length}</div>
+                    <div class="health-stat-label">Total Passwords</div>
+                </div>
+                <div class="health-stat ${weak.length > 0 ? 'danger' : 'good'}">
+                    <div class="health-stat-number">${weak.length}</div>
+                    <div class="health-stat-label">Weak Passwords</div>
+                </div>
+                <div class="health-stat ${reused.length > 0 ? 'warning' : 'good'}">
+                    <div class="health-stat-number">${reused.length}</div>
+                    <div class="health-stat-label">Reused Passwords</div>
+                </div>
+                <div class="health-stat ${old.length > 0 ? 'warning' : 'good'}">
+                    <div class="health-stat-number">${old.length}</div>
+                    <div class="health-stat-label">Old (90+ days)</div>
+                </div>
+            </div>
+            <div class="health-issues">
+                ${renderHealthGroup('Weak Passwords', weak, 'danger', c => {
+                    const s = Analyzer.analyze(c.password).strength;
+                    return `Strength: ${s}%`;
+                })}
+                ${renderHealthGroup('Reused Passwords', reused, 'warning', c => {
+                    const n = passMap[c.password].length;
+                    return `Shared across ${n} accounts`;
+                })}
+                ${renderHealthGroup('Old Passwords', old, 'warning', c => {
+                    return `Last changed ${formatAge(c.updatedAt)}`;
+                })}
+            </div>`;
+    }
+
+    function renderHealthGroup(title, items, severity, detailFn) {
+        if (items.length === 0) return '';
+        return `
+            <div class="health-issue-group glass">
+                <div class="health-issue-header">
+                    <span>${title}</span>
+                    <span class="health-issue-badge ${severity}">${items.length}</span>
+                </div>
+                ${items.map(c => `
+                <div class="health-issue-item">
+                    <div>
+                        <div class="health-issue-site">${escapeHtml(c.site)}</div>
+                        <div class="health-issue-detail">${escapeHtml(c.username)}</div>
+                    </div>
+                    <span class="health-issue-badge ${severity}">${detailFn(c)}</span>
+                </div>`).join('')}
+            </div>`;
+    }
+
+    // ─── Settings Modal ───────────────────────────────────────────────────────
+
+    function openSettingsModal() {
+        elements.settingsModal.classList.remove('hidden');
+        elements.changeMasterKeyForm.reset();
+        document.getElementById('newMasterKeyStrength').style.setProperty('--strength', '0%');
+    }
+
+    function closeSettingsModal() {
+        elements.settingsModal.classList.add('hidden');
+        elements.changeMasterKeyForm.reset();
+    }
+
+    async function handleChangeMasterKey(e) {
+        e.preventDefault();
+        const current = document.getElementById('currentMasterKey').value;
+        const newKey = document.getElementById('newMasterKey').value;
+        const confirm = document.getElementById('confirmNewMasterKey').value;
+
+        if (newKey.length < 8) return showToast('New master key must be at least 8 characters', 'error');
+        if (newKey !== confirm) return showToast('New master keys do not match', 'error');
+        if (current === newKey) return showToast('New key must be different from current', 'error');
+
+        const submitBtn = elements.changeMasterKeyForm.querySelector('button[type="submit"]');
+        submitBtn.textContent = 'Re-encrypting...';
+        submitBtn.disabled = true;
+
+        try {
+            const result = await Vault.changeMasterKey(current, newKey);
+            if (result.success) {
+                // Update session with new key
+                Session.start(result.key, result.salt);
+                closeSettingsModal();
+                showToast('Master key changed successfully', 'success');
+            } else {
+                showToast(result.error || 'Failed to change master key', 'error');
+            }
+        } catch (error) {
+            showToast('An error occurred', 'error');
+        } finally {
+            submitBtn.textContent = 'Change Master Key';
+            submitBtn.disabled = false;
+        }
+    }
+
+    function handleExportVault() {
+        const data = Vault.exportVault();
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `safekey-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Vault exported', 'success');
+    }
+
+    function handleImportVault(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const success = Vault.importVault(ev.target.result);
+            if (success) {
+                showToast('Vault imported — please unlock with your master key', 'success');
+                Session.lock();
+            } else {
+                showToast('Invalid vault file', 'error');
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    }
+
+    // ─── Analyzer ─────────────────────────────────────────────────────────────
+
     function handleAnalyzerInput() {
         const password = elements.analyzerInput.value;
         const analysis = Analyzer.analyze(password);
 
-        // Update strength bar
-        const strengthFill = document.getElementById('strengthFill');
-        strengthFill.style.width = analysis.strength + '%';
-
-        // Update strength label
-        const strengthLabel = document.getElementById('strengthLabel');
+        document.getElementById('strengthFill').style.width = analysis.strength + '%';
         const { label, color } = Analyzer.getStrengthLabel(analysis.strength);
+        const strengthLabel = document.getElementById('strengthLabel');
         strengthLabel.textContent = label;
         strengthLabel.style.color = color;
 
-        // Update rules checklist
-        const rules = analysis.rules;
-        Object.keys(rules).forEach(rule => {
+        Object.keys(analysis.rules).forEach(rule => {
             const ruleEl = document.querySelector(`[data-rule="${rule}"]`);
             if (ruleEl) {
-                ruleEl.classList.toggle('passed', rules[rule]);
-                ruleEl.querySelector('.rule-icon').textContent = rules[rule] ? '✓' : '○';
+                ruleEl.classList.toggle('passed', analysis.rules[rule]);
+                ruleEl.querySelector('.rule-icon').textContent = analysis.rules[rule] ? '✓' : '○';
             }
         });
 
-        // Update metrics
         document.getElementById('entropyValue').textContent = Math.round(analysis.entropy) + ' bits';
         document.getElementById('strengthPercent').textContent = analysis.strength + '%';
         document.getElementById('crackTime').textContent = analysis.crackTime.display;
     }
 
-    /**
-     * Handles password generation
-     */
+    // ─── Generator ────────────────────────────────────────────────────────────
+
     function handleGenerate() {
-        const options = {
+        const result = Generator.generate({
             length: parseInt(elements.passwordLength.value),
             uppercase: elements.includeUppercase.checked,
             lowercase: elements.includeLowercase.checked,
@@ -529,78 +726,62 @@ const App = (function () {
             symbols: elements.includeSymbols.checked,
             keyword: elements.keywordInput.value,
             memorability: parseInt(elements.memorability.value)
-        };
-
-        const result = Generator.generate(options);
-
+        });
         elements.generatedPassword.value = result.password;
         document.getElementById('genEntropyValue').textContent = Math.round(result.entropy) + ' bits';
         document.getElementById('genCrackTime').textContent = result.crackTime;
     }
 
-    /**
-     * Handles copy generated password
-     */
     async function handleCopyPassword() {
         const password = elements.generatedPassword.value;
         if (!password) return;
-
         const success = await Vault.copyToClipboard(password);
-        if (success) {
-            showToast('Password copied (auto-clears in 30s)', 'success');
-        }
+        if (success) showToast('Password copied (auto-clears in 30s)', 'success');
     }
 
-    /**
-     * Shows a toast notification
-     * @param {string} message
-     * @param {string} type
-     */
+    // ─── Utilities ────────────────────────────────────────────────────────────
+
     function showToast(message, type = 'info') {
         const toast = elements.toast;
-        const messageEl = toast.querySelector('.toast-message');
-
-        messageEl.textContent = message;
+        toast.querySelector('.toast-message').textContent = message;
         toast.className = 'toast ' + type;
-
-        setTimeout(() => {
-            toast.classList.add('hidden');
-        }, 3000);
+        clearTimeout(toast._timeout);
+        toast._timeout = setTimeout(() => toast.classList.add('hidden'), 3500);
     }
 
-    /**
-     * Gets initials from a site name
-     * @param {string} site
-     * @returns {string}
-     */
     function getInitials(site) {
         return site.substring(0, 2).toUpperCase();
     }
 
-    /**
-     * Escapes HTML to prevent XSS
-     * @param {string} str
-     * @returns {string}
-     */
     function escapeHtml(str) {
         const div = document.createElement('div');
-        div.textContent = str;
+        div.textContent = str || '';
         return div.innerHTML;
     }
 
-    // Initialize when DOM is ready
+    function formatAge(timestamp) {
+        if (!timestamp) return '';
+        const days = Math.floor((Date.now() - timestamp) / 86400000);
+        if (days === 0) return 'today';
+        if (days === 1) return '1 day ago';
+        if (days < 30) return `${days} days ago`;
+        const months = Math.floor(days / 30);
+        if (months < 12) return `${months}mo ago`;
+        return `${Math.floor(months / 12)}y ago`;
+    }
+
+    function isOld(timestamp) {
+        if (!timestamp) return false;
+        return (Date.now() - timestamp) > 90 * 86400000;
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
 
-    // Public API (minimal)
-    return {
-        navigateTo,
-        showToast
-    };
+    return { navigateTo, showToast };
 })();
 
-// Export for debugging
 window.App = App;
