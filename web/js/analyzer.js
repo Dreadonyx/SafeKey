@@ -191,8 +191,8 @@ const Analyzer = (function () {
         // Average attempts (50% of keyspace)
         const avgAttempts = combinations / 2;
 
-        // Calculate for offline fast attack (common scenario)
-        const seconds = avgAttempts / ATTACK_SPEEDS.offline_fast;
+        // Calculate for offline massive attack (modern GPU cluster, realistic worst-case)
+        const seconds = avgAttempts / ATTACK_SPEEDS.offline_massive;
 
         return {
             seconds,
@@ -227,11 +227,14 @@ const Analyzer = (function () {
         const years = days / 365;
         if (years < 1000) return `${Math.round(years)} years`;
 
-        if (years < 1e6) return `${(years / 1000).toFixed(1)} thousand years`;
-        if (years < 1e9) return `${(years / 1e6).toFixed(1)} million years`;
+        if (years < 1e6)  return `${(years / 1000).toFixed(1)} thousand years`;
+        if (years < 1e9)  return `${(years / 1e6).toFixed(1)} million years`;
         if (years < 1e12) return `${(years / 1e9).toFixed(1)} billion years`;
+        if (years < 1e15) return `${(years / 1e12).toFixed(1)} trillion years`;
+        if (years < 1e18) return `${(years / 1e15).toFixed(1)} quadrillion years`;
+        if (years < 1e21) return `${(years / 1e18).toFixed(1)} quintillion years`;
 
-        return `${years.toExponential(1)} years`;
+        return `${(years / 1e21).toFixed(1)} sextillion years`;
     }
 
     /**

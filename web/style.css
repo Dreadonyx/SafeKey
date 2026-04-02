@@ -287,10 +287,7 @@ body {
     flex-shrink: 0;
 }
 
-.nav-item[data-view="vault"]     .nav-icon::before { content: '🔐'; }
-.nav-item[data-view="health"]    .nav-icon::before { content: '❤️'; }
-.nav-item[data-view="analyzer"]  .nav-icon::before { content: '🔍'; }
-.nav-item[data-view="generator"] .nav-icon::before { content: '⚡'; }
+.nav-icon svg { display: block; }
 
 .sidebar-footer {
     padding: var(--spacing-sm);
@@ -321,10 +318,10 @@ body {
 .lock-btn:hover     { background: var(--danger-dim); color: var(--danger); }
 .theme-btn:hover    { background: var(--bg-hover); color: var(--text-primary); }
 
-.settings-icon::before { content: '⚙️'; }
-.lock-icon::before     { content: '🔒'; }
-.theme-icon::before    { content: '🌙'; }
-[data-theme="light"] .theme-icon::before { content: '☀️'; }
+.settings-icon::before { content: '⚙'; font-style: normal; }
+.lock-icon::before     { content: '⊠'; font-style: normal; }
+.theme-icon::before    { content: '◑'; font-style: normal; }
+[data-theme="light"] .theme-icon::before { content: '○'; font-style: normal; }
 
 .session-timer {
     display: flex;
@@ -335,7 +332,7 @@ body {
     font-size: 0.75rem;
 }
 
-.timer-icon::before { content: '⏱'; }
+.timer-icon::before { content: '◷'; font-style: normal; }
 
 /* ============================================
    Bottom Navigation (Mobile)
@@ -373,9 +370,10 @@ body {
 }
 
 .bottom-nav-item .bnav-icon {
-    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
-    display: block;
 }
 
 .bottom-nav-item .bnav-label {
@@ -961,12 +959,20 @@ input[type="range"] {
 .health-score-card {
     padding: var(--spacing-xl);
     text-align: center;
-    max-width: 200px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xl);
 }
 
 .health-score-number {
-    font-size: 3rem; font-weight: 800;
+    font-size: 3.5rem; font-weight: 800;
     line-height: 1;
+}
+
+.health-score-info {
+    text-align: left;
 }
 
 .score-good { color: var(--success); }
