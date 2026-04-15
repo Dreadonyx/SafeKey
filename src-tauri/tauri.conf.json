@@ -1,6 +1,6 @@
 {
   "productName": "SafeKey",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.dreadonyx.safekey",
   "build": {
     "frontendDist": "../web"
@@ -11,14 +11,14 @@
         "title": "SafeKey",
         "width": 1100,
         "height": 750,
-        "minWidth": 800,
-        "minHeight": 600,
+        "minWidth": 320,
+        "minHeight": 480,
         "resizable": true,
         "fullscreen": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://api.pwnedpasswords.com; img-src 'self' data:"
     }
   },
   "bundle": {
