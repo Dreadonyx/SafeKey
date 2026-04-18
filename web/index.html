@@ -19,6 +19,7 @@
     <header class="mobile-header hidden" id="mobileHeader">
         <span class="mobile-header-title">SafeKey</span>
         <div class="mobile-header-actions">
+            <button class="icon-action-btn" id="mobileThemeBtn" title="Toggle theme">🌙</button>
             <button class="icon-action-btn" id="mobileSettingsBtn" title="Settings">⚙</button>
             <button class="icon-action-btn" id="mobileLockBtn" title="Lock">🔒</button>
         </div>
@@ -52,6 +53,10 @@
                 </li>
             </ul>
             <div class="sidebar-footer">
+                <button class="theme-btn" id="themeBtn">
+                    <span class="theme-icon"></span>
+                    <span id="themeBtnLabel">Dark mode</span>
+                </button>
                 <button class="settings-btn" id="settingsBtn">
                     <span class="settings-icon"></span>
                     <span>Settings</span>
@@ -301,47 +306,69 @@
                             </div>
                         </div>
 
-                        <div class="generator-options">
-                            <div class="option-group">
-                                <label for="passwordLength">Password Length: <span id="lengthValue">16</span></label>
-                                <input type="range" id="passwordLength" min="8" max="64" value="16">
-                            </div>
+                        <!-- Mode Selector -->
+                        <div class="gen-modes">
+                            <button class="gen-mode-btn active" data-mode="random">🎲 Random</button>
+                            <button class="gen-mode-btn" data-mode="readable">✨ Readable</button>
+                            <button class="gen-mode-btn" data-mode="passphrase">📝 Passphrase</button>
+                        </div>
 
-                            <div class="option-group">
-                                <label for="memorability">Memorability</label>
-                                <div class="memorability-slider">
-                                    <span class="slider-label">Max Security</span>
-                                    <input type="range" id="memorability" min="0" max="100" value="0">
-                                    <span class="slider-label">Memorable</span>
+                        <div class="generator-options">
+                            <!-- Random mode options -->
+                            <div id="randomOptions">
+                                <div class="option-group">
+                                    <label for="passwordLength">Length: <span id="lengthValue">16</span></label>
+                                    <input type="range" id="passwordLength" min="8" max="64" value="16">
+                                </div>
+                                <div class="checkbox-options">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="includeUppercase" checked>
+                                        Uppercase (A-Z)
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="includeLowercase" checked>
+                                        Lowercase (a-z)
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="includeNumbers" checked>
+                                        Numbers (0-9)
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="includeSymbols" checked>
+                                        Symbols (!@#$...)
+                                    </label>
                                 </div>
                             </div>
 
-                            <div class="checkbox-options">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="includeUppercase" checked>
-                                    <span class="checkmark"></span>
-                                    Uppercase (A-Z)
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="includeLowercase" checked>
-                                    <span class="checkmark"></span>
-                                    Lowercase (a-z)
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="includeNumbers" checked>
-                                    <span class="checkmark"></span>
-                                    Numbers (0-9)
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="includeSymbols" checked>
-                                    <span class="checkmark"></span>
-                                    Symbols (!@#$...)
-                                </label>
+                            <!-- Readable / Passphrase mode info -->
+                            <div id="readableOptions" class="hidden">
+                                <p class="gen-mode-desc">Generates a memorable password like <code>BlueStorm#42</code></p>
+                                <div class="checkbox-options">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="readableNumbers" checked>
+                                        Include numbers
+                                    </label>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="readableSymbols" checked>
+                                        Include symbols
+                                    </label>
+                                </div>
                             </div>
 
+                            <div id="passphraseOptions" class="hidden">
+                                <p class="gen-mode-desc">Generates a phrase like <code>blue-storm-tiger-847</code></p>
+                                <div class="checkbox-options">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="passphraseNumbers" checked>
+                                        Include numbers
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Keyword — shared across all modes -->
                             <div class="option-group">
-                                <label for="keywordInput">Include Keyword (optional)</label>
-                                <input type="text" id="keywordInput" placeholder="e.g., mysite">
+                                <label for="keywordInput">Keyword (optional)</label>
+                                <input type="text" id="keywordInput" placeholder="e.g., mysite — woven into password">
                             </div>
                         </div>
 
@@ -372,48 +399,80 @@
             </div>
             <form id="credentialForm">
                 <input type="hidden" id="credentialId">
+
+                <!-- Password — always required -->
                 <div class="form-group">
-                    <label for="credentialSite">Website / App</label>
-                    <input type="text" id="credentialSite" placeholder="e.g., GitHub" required>
-                </div>
-                <div class="form-group">
-                    <label for="credentialUrl">URL (optional)</label>
-                    <input type="url" id="credentialUrl" placeholder="e.g., https://github.com">
-                </div>
-                <div class="form-group">
-                    <label for="credentialCategory">Category</label>
-                    <select id="credentialCategory">
-                        <option value="">— Select category —</option>
-                        <option value="work">Work</option>
-                        <option value="social">Social</option>
-                        <option value="banking">Banking</option>
-                        <option value="shopping">Shopping</option>
-                        <option value="email">Email</option>
-                        <option value="gaming">Gaming</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="credentialUsername">Username / Email</label>
-                    <input type="text" id="credentialUsername" placeholder="e.g., user@email.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="credentialPassword">Password</label>
+                    <label for="credentialPassword">Password <span class="required-star">*</span></label>
                     <div class="input-wrapper">
                         <input type="password" id="credentialPassword" placeholder="Enter password" required>
                         <button type="button" class="toggle-password" data-target="credentialPassword">👁️</button>
-                        <button type="button" class="icon-btn generate-inline" id="generateInlineBtn"
-                            title="Generate">⚡</button>
+                        <button type="button" class="icon-btn generate-inline" id="generateInlineBtn" title="Generate">⚡</button>
                     </div>
                     <div class="breach-check-row">
                         <button type="button" class="btn-breach-check" id="breachCheckBtn">🔍 Check for data breaches</button>
                         <span class="breach-result hidden" id="breachResult"></span>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="credentialNotes">Notes (optional)</label>
-                    <textarea id="credentialNotes" placeholder="Additional notes..."></textarea>
+
+                <!-- Optional fields -->
+                <div class="optional-fields">
+                    <p class="optional-label">Optional fields</p>
+
+                    <div class="optional-field-row">
+                        <label class="checkbox-label opt-toggle">
+                            <input type="checkbox" id="chkSite"> Site / App
+                        </label>
+                        <div class="opt-field hidden" id="fieldSite">
+                            <input type="text" id="credentialSite" placeholder="e.g., GitHub">
+                        </div>
+                    </div>
+
+                    <div class="optional-field-row">
+                        <label class="checkbox-label opt-toggle">
+                            <input type="checkbox" id="chkUsername"> Username / Email
+                        </label>
+                        <div class="opt-field hidden" id="fieldUsername">
+                            <input type="text" id="credentialUsername" placeholder="e.g., user@email.com">
+                        </div>
+                    </div>
+
+                    <div class="optional-field-row">
+                        <label class="checkbox-label opt-toggle">
+                            <input type="checkbox" id="chkUrl"> URL
+                        </label>
+                        <div class="opt-field hidden" id="fieldUrl">
+                            <input type="url" id="credentialUrl" placeholder="e.g., https://github.com">
+                        </div>
+                    </div>
+
+                    <div class="optional-field-row">
+                        <label class="checkbox-label opt-toggle">
+                            <input type="checkbox" id="chkCategory"> Category
+                        </label>
+                        <div class="opt-field hidden" id="fieldCategory">
+                            <select id="credentialCategory">
+                                <option value="">— Select —</option>
+                                <option value="work">Work</option>
+                                <option value="social">Social</option>
+                                <option value="banking">Banking</option>
+                                <option value="shopping">Shopping</option>
+                                <option value="email">Email</option>
+                                <option value="gaming">Gaming</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="optional-field-row">
+                        <label class="checkbox-label opt-toggle">
+                            <input type="checkbox" id="chkNotes"> Notes
+                        </label>
+                        <div class="opt-field hidden" id="fieldNotes">
+                            <textarea id="credentialNotes" placeholder="Additional notes..."></textarea>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="cancelModal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save</button>

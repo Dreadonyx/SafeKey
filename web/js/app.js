@@ -44,6 +44,9 @@ const App = (function () {
         elements.mobileHeader = document.getElementById('mobileHeader');
         elements.mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
         elements.mobileLockBtn = document.getElementById('mobileLockBtn');
+        elements.mobileThemeBtn = document.getElementById('mobileThemeBtn');
+        elements.themeBtn = document.getElementById('themeBtn');
+        elements.themeBtnLabel = document.getElementById('themeBtnLabel');
 
         elements.setupForm = document.getElementById('setupForm');
         elements.unlockForm = document.getElementById('unlockForm');
@@ -59,7 +62,6 @@ const App = (function () {
 
         elements.passwordLength = document.getElementById('passwordLength');
         elements.lengthValue = document.getElementById('lengthValue');
-        elements.memorability = document.getElementById('memorability');
         elements.generatedPassword = document.getElementById('generatedPassword');
         elements.includeUppercase = document.getElementById('includeUppercase');
         elements.includeLowercase = document.getElementById('includeLowercase');
@@ -125,6 +127,10 @@ const App = (function () {
         elements.lockBtn.addEventListener('click', () => Session.lock());
         elements.mobileLockBtn.addEventListener('click', () => Session.lock());
         elements.mobileSettingsBtn.addEventListener('click', openSettingsModal);
+        elements.mobileThemeBtn.addEventListener('click', toggleTheme);
+        elements.themeBtn.addEventListener('click', toggleTheme);
+
+        initTheme();
 
         elements.settingsBtn.addEventListener('click', openSettingsModal);
         elements.closeSettings.addEventListener('click', closeSettingsModal);
@@ -184,6 +190,26 @@ const App = (function () {
         elements.generateBtn.addEventListener('click', handleGenerate);
         elements.regenerateBtn.addEventListener('click', handleGenerate);
         elements.copyPasswordBtn.addEventListener('click', handleCopyPassword);
+
+        // Generator mode tabs
+        document.querySelectorAll('.gen-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.gen-mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('randomOptions').classList.toggle('hidden', btn.dataset.mode !== 'random');
+                document.getElementById('readableOptions').classList.toggle('hidden', btn.dataset.mode !== 'readable');
+                document.getElementById('passphraseOptions').classList.toggle('hidden', btn.dataset.mode !== 'passphrase');
+            });
+        });
+
+        // Optional field toggles in credential modal
+        document.querySelectorAll('.opt-toggle input[type="checkbox"]').forEach(chk => {
+            chk.addEventListener('change', () => {
+                const fieldId = 'field' + chk.id.replace('chk', '');
+                const fieldEl = document.getElementById(fieldId);
+                if (fieldEl) fieldEl.classList.toggle('hidden', !chk.checked);
+            });
+        });
 
         document.addEventListener('keydown', handleGlobalKeydown);
     }
@@ -423,16 +449,28 @@ const App = (function () {
     function openCredentialModal(credential = null) {
         editingCredentialId = credential?.id || null;
         elements.modalTitle.textContent = credential ? 'Edit Credential' : 'Add Credential';
-        document.getElementById('credentialId').value = credential?.id || '';
-        document.getElementById('credentialSite').value = credential?.site || '';
-        document.getElementById('credentialUrl').value = credential?.url || '';
-        document.getElementById('credentialCategory').value = credential?.category || '';
-        document.getElementById('credentialUsername').value = credential?.username || '';
+        document.getElementById('credentialId').value    = credential?.id       || '';
         document.getElementById('credentialPassword').value = credential?.password || '';
-        document.getElementById('credentialNotes').value = credential?.notes || '';
+
+        // Set optional fields and toggle their visibility
+        const optionals = [
+            { chk: 'chkSite',     field: 'fieldSite',     input: 'credentialSite',     val: credential?.site     || '' },
+            { chk: 'chkUsername', field: 'fieldUsername',  input: 'credentialUsername', val: credential?.username || '' },
+            { chk: 'chkUrl',      field: 'fieldUrl',       input: 'credentialUrl',      val: credential?.url      || '' },
+            { chk: 'chkCategory', field: 'fieldCategory',  input: 'credentialCategory', val: credential?.category || '' },
+            { chk: 'chkNotes',    field: 'fieldNotes',     input: 'credentialNotes',    val: credential?.notes    || '' },
+        ];
+
+        optionals.forEach(({ chk, field, input, val }) => {
+            const hasValue = !!val;
+            document.getElementById(chk).checked = hasValue;
+            document.getElementById(field).classList.toggle('hidden', !hasValue);
+            document.getElementById(input).value = val;
+        });
+
         elements.breachResult.classList.add('hidden');
         elements.credentialModal.classList.remove('hidden');
-        document.getElementById('credentialSite').focus();
+        document.getElementById('credentialPassword').focus();
     }
 
     function closeCredentialModal() {
@@ -740,14 +778,19 @@ const App = (function () {
     // ─── Generator ────────────────────────────────────────────────────────────
 
     function handleGenerate() {
+        const activeMode = document.querySelector('.gen-mode-btn.active');
+        const mode = activeMode ? activeMode.dataset.mode : 'random';
         const result = Generator.generate({
-            length: parseInt(elements.passwordLength.value),
+            mode,
+            length:    parseInt(elements.passwordLength.value),
             uppercase: elements.includeUppercase.checked,
             lowercase: elements.includeLowercase.checked,
-            numbers: elements.includeNumbers.checked,
-            symbols: elements.includeSymbols.checked,
-            keyword: elements.keywordInput.value,
-            memorability: parseInt(elements.memorability.value)
+            numbers:   mode === 'readable'   ? document.getElementById('readableNumbers').checked
+                     : mode === 'passphrase' ? document.getElementById('passphraseNumbers').checked
+                     : elements.includeNumbers.checked,
+            symbols:   mode === 'readable'   ? document.getElementById('readableSymbols').checked
+                     : elements.includeSymbols.checked,
+            keyword:   elements.keywordInput.value
         });
         elements.generatedPassword.value = result.password;
         document.getElementById('genEntropyValue').textContent = Math.round(result.entropy) + ' bits';
@@ -804,6 +847,28 @@ const App = (function () {
     function isOld(timestamp) {
         if (!timestamp) return false;
         return (Date.now() - timestamp) > 90 * 86400000;
+    }
+
+    // ─── Theme ────────────────────────────────────────────────────────────────
+
+    function initTheme() {
+        const saved = localStorage.getItem('safekey_theme') || 'dark';
+        applyTheme(saved);
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('safekey_theme', theme);
+        const isDark = theme === 'dark';
+        const label = isDark ? 'Light mode' : 'Dark mode';
+        const icon  = isDark ? '🌙' : '☀️';
+        if (elements.themeBtnLabel) elements.themeBtnLabel.textContent = label;
+        if (elements.mobileThemeBtn) elements.mobileThemeBtn.textContent = icon;
     }
 
     if (document.readyState === 'loading') {

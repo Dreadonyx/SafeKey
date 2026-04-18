@@ -1,256 +1,184 @@
 /**
  * SafeKey Password Generator
- * 
- * Generates secure passwords with:
- * - Configurable length and character sets
- * - Keyword integration
- * - Memorability slider (entropy vs pronounceability)
- * - Real-time entropy display
+ *
+ * Modes:
+ *  - random     : cryptographically random characters
+ *  - readable   : Word + Word + Symbol + Number  (e.g. BlueStorm#42)
+ *  - passphrase : word-word-word-number          (e.g. blue-storm-tiger-847)
  */
 
 const Generator = (function () {
     'use strict';
 
-    // Character sets
     const CHARS = {
         lowercase: 'abcdefghijklmnopqrstuvwxyz',
         uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-        numbers: '0123456789',
-        symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+        numbers:   '0123456789',
+        symbols:   '!@#$%&*+-=?'
     };
 
-    // Pronounceable syllables for memorable passwords
-    const SYLLABLES = [
-        'ba', 'be', 'bi', 'bo', 'bu',
-        'ca', 'ce', 'ci', 'co', 'cu',
-        'da', 'de', 'di', 'do', 'du',
-        'fa', 'fe', 'fi', 'fo', 'fu',
-        'ga', 'ge', 'gi', 'go', 'gu',
-        'ha', 'he', 'hi', 'ho', 'hu',
-        'ja', 'je', 'ji', 'jo', 'ju',
-        'ka', 'ke', 'ki', 'ko', 'ku',
-        'la', 'le', 'li', 'lo', 'lu',
-        'ma', 'me', 'mi', 'mo', 'mu',
-        'na', 'ne', 'ni', 'no', 'nu',
-        'pa', 'pe', 'pi', 'po', 'pu',
-        'ra', 're', 'ri', 'ro', 'ru',
-        'sa', 'se', 'si', 'so', 'su',
-        'ta', 'te', 'ti', 'to', 'tu',
-        'va', 've', 'vi', 'vo', 'vu',
-        'wa', 'we', 'wi', 'wo', 'wu',
-        'za', 'ze', 'zi', 'zo', 'zu'
+    const ADJECTIVES = [
+        'blue','red','gold','dark','bright','swift','bold','calm','deep',
+        'free','glad','hard','high','keen','kind','long','mild','neat',
+        'pure','rare','rich','safe','slim','soft','tall','warm','wide',
+        'wise','cold','clear','fresh','light','sharp','smart','strong',
+        'sweet','wild','green','silver','silent','brave','quick','cool',
+        'grand','royal','solar','lunar','iron','storm','frost','amber'
     ];
 
-    /**
-     * Generates a password based on options
-     * @param {Object} options
-     * @param {number} options.length - Password length (8-64)
-     * @param {boolean} options.uppercase - Include uppercase letters
-     * @param {boolean} options.lowercase - Include lowercase letters  
-     * @param {boolean} options.numbers - Include numbers
-     * @param {boolean} options.symbols - Include symbols
-     * @param {string} options.keyword - Optional keyword to include
-     * @param {number} options.memorability - 0-100, higher = more memorable
-     * @returns {Object} Generated password with metadata
-     */
+    const NOUNS = [
+        'tiger','storm','eagle','river','stone','cloud','flame','ocean',
+        'falcon','wolf','lion','hawk','shark','bear','crane','raven',
+        'peak','ridge','coast','crest','forge','frost','spark','dawn',
+        'dusk','echo','gale','helm','lark','mist','pine','reef','sage',
+        'tide','torch','vale','vine','wake','ward','leaf','moon','star',
+        'fire','ship','gate','road','hill','lake','isle','tree','rock',
+        'trail','vault','crest','grove','blaze','comet','drift','flare'
+    ];
+
+    const SEPARATORS = ['-', '.', '_'];
+
+    // ── Public: generate ──────────────────────────────────────────────────────
+
     function generate(options = {}) {
-        const config = {
-            length: Math.max(8, Math.min(64, options.length || 16)),
-            uppercase: options.uppercase !== false,
-            lowercase: options.lowercase !== false,
-            numbers: options.numbers !== false,
-            symbols: options.symbols !== false,
-            keyword: options.keyword || '',
-            memorability: options.memorability || 0
-        };
+        const mode    = options.mode    || 'random';
+        const keyword = (options.keyword || '').trim();
 
         let password;
 
-        if (config.memorability > 60) {
-            password = generateMemorable(config);
+        if (mode === 'readable') {
+            password = generateReadable(options, keyword);
+        } else if (mode === 'passphrase') {
+            password = generatePassphrase(options, keyword);
         } else {
-            password = generateRandom(config);
+            password = generateRandom(options, keyword);
         }
 
-        // Ensure we have at least one required character in random mode
-        if (config.memorability <= 60) {
-            password = ensureRequirements(password, config);
-        }
-
-        // Analyze the generated password
         const analysis = Analyzer.analyze(password);
-
         return {
             password,
-            length: password.length,
-            entropy: analysis.entropy,
+            length:    password.length,
+            entropy:   analysis.entropy,
             crackTime: analysis.crackTime.display,
-            strength: analysis.strength
+            strength:  analysis.strength
         };
     }
 
-    /**
-     * Generates a fully random password
-     * @param {Object} config
-     * @returns {string}
-     */
-    function generateRandom(config) {
-        // Build character pool
-        let pool = '';
-        if (config.lowercase) pool += CHARS.lowercase;
-        if (config.uppercase) pool += CHARS.uppercase;
-        if (config.numbers) pool += CHARS.numbers;
-        if (config.symbols) pool += CHARS.symbols;
+    // ── Readable mode ─────────────────────────────────────────────────────────
+    // Pattern: [Adj][Noun][Symbol][Number]  e.g. BlueStorm#42
 
-        if (!pool) pool = CHARS.lowercase + CHARS.uppercase; // Fallback
+    function generateReadable(config, keyword) {
+        const symbols = config.symbols !== false ? CHARS.symbols : '';
+        const useNums = config.numbers !== false;
 
-        let password = '';
-
-        // Include keyword if provided
-        if (config.keyword) {
-            password = transformKeyword(config.keyword, config);
+        // Pick two words (or use keyword as one)
+        let word1, word2;
+        if (keyword) {
+            word1 = capitalize(keyword);
+            word2 = capitalize(pick(NOUNS));
+        } else {
+            word1 = capitalize(pick(ADJECTIVES));
+            word2 = capitalize(pick(NOUNS));
         }
 
-        // Fill remaining length with random characters
-        const remainingLength = config.length - password.length;
+        const sym = symbols ? pick(symbols.split('')) : '';
+        const num = useNums ? String(secureRandomInt(900) + 100) : '';  // 3-digit
 
-        for (let i = 0; i < remainingLength; i++) {
+        return word1 + word2 + sym + num;
+    }
+
+    // ── Passphrase mode ───────────────────────────────────────────────────────
+    // Pattern: word-word-word-number  e.g. blue-storm-tiger-847
+
+    function generatePassphrase(config, keyword) {
+        const sep    = pick(SEPARATORS);
+        const useNums = config.numbers !== false;
+
+        let words = [];
+        if (keyword) {
+            words.push(keyword.toLowerCase());
+            words.push(pick(ADJECTIVES));
+            words.push(pick(NOUNS));
+        } else {
+            words.push(pick(ADJECTIVES));
+            words.push(pick(NOUNS));
+            words.push(pick(ADJECTIVES.concat(NOUNS)));
+        }
+
+        // Shuffle so keyword isn't always first
+        words = shuffleArray(words);
+
+        let passphrase = words.join(sep);
+        if (useNums) {
+            passphrase += sep + (secureRandomInt(900) + 100);
+        }
+
+        return passphrase;
+    }
+
+    // ── Random mode ───────────────────────────────────────────────────────────
+
+    function generateRandom(config, keyword) {
+        const length = Math.max(8, Math.min(64, config.length || 16));
+
+        let pool = '';
+        if (config.lowercase !== false) pool += CHARS.lowercase;
+        if (config.uppercase !== false) pool += CHARS.uppercase;
+        if (config.numbers   !== false) pool += CHARS.numbers;
+        if (config.symbols   !== false) pool += CHARS.symbols;
+        if (!pool) pool = CHARS.lowercase + CHARS.uppercase;
+
+        let password = keyword ? transformKeyword(keyword, config) : '';
+        const remaining = Math.max(0, length - password.length);
+
+        for (let i = 0; i < remaining; i++) {
             password += pool[secureRandomInt(pool.length)];
         }
 
-        // Shuffle the password
-        return shuffleString(password);
+        password = shuffleString(password);
+        return ensureRequirements(password, config);
     }
 
-    /**
-     * Generates a more memorable password using syllables
-     * @param {Object} config
-     * @returns {string}
-     */
-    function generateMemorable(config) {
-        let password = '';
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-        // Include keyword if provided
-        if (config.keyword) {
-            password = config.keyword;
-        }
-
-        // Build with syllables
-        while (password.length < config.length) {
-            const syllable = SYLLABLES[secureRandomInt(SYLLABLES.length)];
-            password += syllable;
-
-            // Add number occasionally
-            if (config.numbers && secureRandomFloat() > 0.7) {
-                password += secureRandomInt(10);
-            }
-
-            // Add separator
-            if (password.length < config.length - 3 && secureRandomFloat() > 0.6) {
-                password += config.symbols ? '-' : '';
-            }
-        }
-
-        // Trim to exact length
-        password = password.slice(0, config.length);
-
-        // Add uppercase if needed
-        if (config.uppercase) {
-            password = capitalizeRandom(password);
-        }
-
-        return password;
-    }
-
-    /**
-     * Transforms a keyword for inclusion in password
-     * @param {string} keyword
-     * @param {Object} config
-     * @returns {string}
-     */
     function transformKeyword(keyword, config) {
-        let result = keyword;
-
-        // Apply l33t speak transformations randomly
-        const transforms = {
-            'a': '@',
-            'e': '3',
-            'i': '1',
-            'o': '0',
-            's': '$',
-            't': '7'
-        };
-
-        if (config.symbols || config.numbers) {
-            result = result.split('').map(char => {
-                const lower = char.toLowerCase();
-                if (transforms[lower] && secureRandomFloat() > 0.5) {
-                    return transforms[lower];
-                }
-                return char;
-            }).join('');
-        }
-
-        // Capitalize some letters
-        if (config.uppercase) {
-            result = capitalizeRandom(result);
-        }
-
+        const subs = { a:'@', e:'3', i:'1', o:'0', s:'$', t:'7' };
+        let result = keyword.split('').map(c => {
+            const l = c.toLowerCase();
+            return (subs[l] && secureRandomFloat() > 0.5) ? subs[l] : c;
+        }).join('');
+        if (config.uppercase !== false) result = capitalizeRandom(result);
         return result;
     }
 
-    /**
-     * Ensures password meets minimum requirements
-     * @param {string} password
-     * @param {Object} config
-     * @returns {string}
-     */
     function ensureRequirements(password, config) {
-        let chars = password.split('');
-
-        // Check and fix requirements
-        if (config.lowercase && !/[a-z]/.test(password)) {
-            chars[secureRandomInt(chars.length)] = CHARS.lowercase[secureRandomInt(26)];
-        }
-        if (config.uppercase && !/[A-Z]/.test(password)) {
-            chars[secureRandomInt(chars.length)] = CHARS.uppercase[secureRandomInt(26)];
-        }
-        if (config.numbers && !/[0-9]/.test(password)) {
-            chars[secureRandomInt(chars.length)] = CHARS.numbers[secureRandomInt(10)];
-        }
-        if (config.symbols && !/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
-            chars[secureRandomInt(chars.length)] = CHARS.symbols[secureRandomInt(CHARS.symbols.length)];
-        }
-
+        const chars = password.split('');
+        const replace = i => chars[secureRandomInt(chars.length)] = i;
+        if (config.lowercase !== false && !/[a-z]/.test(password))
+            replace(CHARS.lowercase[secureRandomInt(26)]);
+        if (config.uppercase !== false && !/[A-Z]/.test(password))
+            replace(CHARS.uppercase[secureRandomInt(26)]);
+        if (config.numbers !== false && !/[0-9]/.test(password))
+            replace(CHARS.numbers[secureRandomInt(10)]);
+        if (config.symbols !== false && !/[!@#$%&*+\-=?]/.test(password))
+            replace(CHARS.symbols[secureRandomInt(CHARS.symbols.length)]);
         return chars.join('');
     }
 
-    /**
-     * Generates a cryptographically secure random integer
-     * @param {number} max - Exclusive upper bound
-     * @returns {number}
-     */
-    function secureRandomInt(max) {
-        const array = new Uint32Array(1);
-        crypto.getRandomValues(array);
-        return array[0] % max;
+    function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     }
 
-    /**
-     * Generates a cryptographically secure random float in [0, 1)
-     * @returns {number}
-     */
-    function secureRandomFloat() {
-        const array = new Uint32Array(1);
-        crypto.getRandomValues(array);
-        return array[0] / (0xFFFFFFFF + 1);
+    function capitalizeRandom(str) {
+        return str.split('').map(c =>
+            /[a-z]/.test(c) && secureRandomFloat() > 0.6 ? c.toUpperCase() : c
+        ).join('');
     }
 
-    /**
-     * Shuffles a string using Fisher-Yates algorithm
-     * @param {string} str
-     * @returns {string}
-     */
+    function pick(arr) {
+        return arr[secureRandomInt(arr.length)];
+    }
+
     function shuffleString(str) {
         const arr = str.split('');
         for (let i = arr.length - 1; i > 0; i--) {
@@ -260,40 +188,28 @@ const Generator = (function () {
         return arr.join('');
     }
 
-    /**
-     * Randomly capitalizes some letters
-     * @param {string} str
-     * @returns {string}
-     */
-    function capitalizeRandom(str) {
-        return str.split('').map(char => {
-            if (/[a-z]/.test(char) && secureRandomFloat() > 0.7) {
-                return char.toUpperCase();
-            }
-            return char;
-        }).join('');
-    }
-
-    /**
-     * Generates multiple passwords for user to choose from
-     * @param {Object} options
-     * @param {number} count
-     * @returns {Array}
-     */
-    function generateMultiple(options, count = 5) {
-        const passwords = [];
-        for (let i = 0; i < count; i++) {
-            passwords.push(generate(options));
+    function shuffleArray(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = secureRandomInt(i + 1);
+            [a[i], a[j]] = [a[j], a[i]];
         }
-        return passwords;
+        return a;
     }
 
-    // Public API
-    return {
-        generate,
-        generateMultiple
-    };
+    function secureRandomInt(max) {
+        const buf = new Uint32Array(1);
+        crypto.getRandomValues(buf);
+        return buf[0] % max;
+    }
+
+    function secureRandomFloat() {
+        const buf = new Uint32Array(1);
+        crypto.getRandomValues(buf);
+        return buf[0] / (0xFFFFFFFF + 1);
+    }
+
+    return { generate };
 })();
 
-// Export for use in other modules
 window.Generator = Generator;
