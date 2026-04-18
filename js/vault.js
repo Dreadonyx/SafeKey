@@ -327,6 +327,54 @@ const Vault = (function () {
         }
     }
 
+    /**
+     * Changes the master key by re-encrypting all credentials
+     * @param {string} currentPassword
+     * @param {string} newPassword
+     * @returns {Promise<{success: boolean, key?: CryptoKey, salt?: Uint8Array}>}
+     */
+    async function changeMasterKey(currentPassword, newPassword) {
+        try {
+            const saltBase64 = localStorage.getItem(STORAGE_KEYS.VAULT_SALT);
+            if (!saltBase64) return { success: false, error: 'No vault found' };
+
+            const currentSalt = Crypto.base64ToArrayBuffer(saltBase64);
+            const currentKey = await Crypto.deriveKey(currentPassword, currentSalt);
+
+            const verifyData = JSON.parse(localStorage.getItem(STORAGE_KEYS.VAULT_VERIFY));
+            try {
+                const verified = await Crypto.decrypt(verifyData.ciphertext, verifyData.iv, currentKey);
+                if (verified !== 'SAFEKEY_VERIFY_TOKEN') {
+                    return { success: false, error: 'Invalid current master key' };
+                }
+            } catch {
+                return { success: false, error: 'Invalid current master key' };
+            }
+
+            const allCreds = await getAll();
+            const newSalt = Crypto.generateSalt();
+            const newKey = await Crypto.deriveKey(newPassword, newSalt);
+            const newVerifyData = await Crypto.encrypt('SAFEKEY_VERIFY_TOKEN', newKey);
+
+            const newEncryptedData = [];
+            for (const cred of allCreds) {
+                const credData = { ...cred };
+                delete credData.id;
+                const encrypted = await Crypto.encrypt(JSON.stringify(credData), newKey);
+                newEncryptedData.push({ id: cred.id, data: encrypted.ciphertext, iv: encrypted.iv });
+            }
+
+            localStorage.setItem(STORAGE_KEYS.VAULT_SALT, Crypto.arrayBufferToBase64(newSalt));
+            localStorage.setItem(STORAGE_KEYS.VAULT_VERIFY, JSON.stringify(newVerifyData));
+            localStorage.setItem(STORAGE_KEYS.VAULT_DATA, JSON.stringify(newEncryptedData));
+
+            return { success: true, key: newKey, salt: newSalt };
+        } catch (error) {
+            console.error('[Vault] Change master key failed:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     // Public API
     return {
         exists,
@@ -341,7 +389,8 @@ const Vault = (function () {
         copyToClipboard,
         exportVault,
         importVault,
-        getUsername
+        getUsername,
+        changeMasterKey
     };
 })();
 

@@ -1635,3 +1635,451 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .text-danger {
     color: var(--danger);
 }
+
+/* ============================================
+   Toast Types
+   ============================================ */
+
+.toast.error {
+    border-color: var(--danger);
+    box-shadow: var(--shadow-lg), 0 0 15px var(--danger-glow);
+}
+.toast.error .toast-message { color: var(--danger); }
+
+.toast.warning {
+    border-color: var(--warning);
+    box-shadow: var(--shadow-lg), 0 0 15px rgba(245, 158, 11, 0.2);
+}
+.toast.warning .toast-message { color: var(--warning); }
+
+.toast.info .toast-message { color: var(--accent-primary); }
+
+/* ============================================
+   Select Input
+   ============================================ */
+
+select {
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all var(--transition-fast);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2364748b' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   Vault Controls (search + filter bar)
+   ============================================ */
+
+.vault-controls {
+    margin-bottom: var(--spacing-xl);
+}
+
+.vault-controls .search-bar {
+    margin-bottom: var(--spacing-md);
+}
+
+.filter-bar {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.filter-chip {
+    padding: 0.3rem 0.85rem;
+    border-radius: 100px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-transform: capitalize;
+}
+
+.filter-chip:hover,
+.filter-chip.active {
+    border-color: var(--accent-primary);
+    background: rgba(20, 184, 166, 0.1);
+    color: var(--accent-primary);
+}
+
+/* ============================================
+   Credential Card Enhancements
+   ============================================ */
+
+.credential-site-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.credential-url {
+    font-size: 0.75rem;
+    color: var(--accent-tertiary);
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity var(--transition-fast);
+    white-space: nowrap;
+}
+
+.credential-url:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.credential-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-top: 0.2rem;
+    flex-wrap: wrap;
+}
+
+.category-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.5rem;
+    border-radius: 100px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(20, 184, 166, 0.12);
+    color: var(--accent-primary);
+    border: 1px solid rgba(20, 184, 166, 0.25);
+}
+
+.credential-age {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.credential-age.old {
+    color: var(--warning);
+}
+
+/* ============================================
+   Breach Check
+   ============================================ */
+
+.breach-check-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.btn-breach-check {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    padding: 0.3rem 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-breach-check:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    background: rgba(20, 184, 166, 0.05);
+}
+
+.btn-breach-check:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.breach-result {
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+}
+
+.breach-result.breach-bad {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.breach-result.breach-good {
+    color: var(--success);
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+}
+
+.breach-result.breach-warn {
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* ============================================
+   Health View
+   ============================================ */
+
+.health-score-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.health-score-card {
+    text-align: center;
+    padding: var(--spacing-xl) var(--spacing-2xl);
+    border-radius: var(--radius-xl);
+    min-width: 220px;
+}
+
+.health-score-number {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: var(--spacing-sm);
+}
+
+.score-good { color: var(--success); }
+.score-warn { color: var(--warning); }
+.score-bad  { color: var(--danger); }
+
+.health-score-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-xs);
+}
+
+.health-score-sub {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.health-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.health-stat {
+    padding: var(--spacing-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    transition: border-color var(--transition-fast);
+}
+
+.health-stat.danger { border-color: rgba(239, 68, 68, 0.3); }
+.health-stat.warning { border-color: rgba(245, 158, 11, 0.3); }
+.health-stat.good { border-color: rgba(20, 184, 166, 0.3); }
+
+.health-stat-number {
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    margin-bottom: var(--spacing-xs);
+}
+
+.health-stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.health-issues {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.health-issue-group {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.health-issue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--bg-tertiary);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.health-issue-badge {
+    padding: 0.2rem 0.65rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.health-issue-badge.danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+}
+
+.health-issue-badge.warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+}
+
+.health-issue-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    gap: var(--spacing-md);
+}
+
+.health-issue-site {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.health-issue-detail {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+}
+
+/* ============================================
+   Settings Modal
+   ============================================ */
+
+.modal-wide {
+    max-width: 560px;
+}
+
+.settings-section {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-xl);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.settings-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-lg);
+}
+
+.settings-description {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.6;
+}
+
+.settings-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.settings-import-label {
+    cursor: pointer;
+}
+
+/* ============================================
+   Settings Button (sidebar)
+   ============================================ */
+
+.settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-md);
+    background: rgba(20, 184, 166, 0.06);
+    border: 1px solid rgba(20, 184, 166, 0.15);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-bottom: var(--spacing-sm);
+}
+
+.settings-btn:hover {
+    background: rgba(20, 184, 166, 0.12);
+    color: var(--accent-primary);
+    border-color: rgba(20, 184, 166, 0.3);
+}
+
+.settings-icon {
+    width: 16px;
+    height: 16px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-icon::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    border: 2.5px solid currentColor;
+    border-radius: 50%;
+    position: absolute;
+}
+
+/* ============================================
+   Health nav icon (shield shape)
+   ============================================ */
+
+.nav-item[data-view="health"] .nav-icon::before {
+    content: '';
+    width: 18px;
+    height: 20px;
+    background: currentColor;
+    clip-path: polygon(50% 0%, 100% 20%, 100% 65%, 50% 100%, 0% 65%, 0% 20%);
+    position: absolute;
+}
