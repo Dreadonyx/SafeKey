@@ -620,8 +620,10 @@ const App = (function () {
             <div class="health-score-row">
                 <div class="health-score-card glass">
                     <div class="health-score-number ${score >= 80 ? 'score-good' : score >= 50 ? 'score-warn' : 'score-bad'}">${score}</div>
-                    <div class="health-score-label">Security Score</div>
-                    <div class="health-score-sub">${score >= 80 ? 'Great shape' : score >= 50 ? 'Needs attention' : 'Action required'}</div>
+                    <div class="health-score-info">
+                        <div class="health-score-label">Security Score</div>
+                        <div class="health-score-sub">${score >= 80 ? 'Great shape' : score >= 50 ? 'Needs attention' : 'Action required'}</div>
+                    </div>
                 </div>
             </div>
             <div class="health-stats">
