@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="SafeKey - A local-only, encrypted password manager. No cloud, no syncing, complete security.">
+    <title>SafeKey - Secure Password Manager</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Navigation Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon"></span>
+                    <span class="logo-text">SafeKey</span>
+                </div>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-view="vault">
+                    <span class="nav-icon"></span>
+                    <span class="nav-text">Vault</span>
+                </li>
+                <li class="nav-item" data-view="analyzer">
+                    <span class="nav-icon"></span>
+                    <span class="nav-text">Analyzer</span>
+                </li>
+                <li class="nav-item" data-view="generator">
+                    <span class="nav-icon"></span>
+                    <span class="nav-text">Generator</span>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button class="lock-btn" id="lockBtn">
+                    <span class="lock-icon"></span>
+                    <span>Lock Vault</span>
+                </button>
+                <div class="session-timer" id="sessionTimer">
+                    <span class="timer-icon"></span>
+                    <span class="timer-text">20:00</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Landing View (Entry Point) -->
+            <div class="view" id="landingView">
+                <div class="auth-container">
+                    <div class="landing-card glass">
+                        <div class="auth-header">
+                            <span class="auth-icon"></span>
+                            <h1>SafeKey</h1>
+                            <p>Local-only encrypted password manager</p>
+                        </div>
+                        <div class="landing-options">
+                            <button class="landing-btn" id="generateVaultBtn">
+                                <span class="landing-btn-icon"></span>
+                                <span class="landing-btn-text">
+                                    <strong>Generate a Vault</strong>
+                                    <small>Create a new encrypted vault with a master key</small>
+                                </span>
+                            </button>
+                            <button class="landing-btn" id="openVaultBtn">
+                                <span class="landing-btn-icon"></span>
+                                <span class="landing-btn-text">
+                                    <strong>Open Vault</strong>
+                                    <small>Unlock an existing vault with your master key</small>
+                                </span>
+                            </button>
+                        </div>
+                        <div class="landing-footer">
+                            <p>No cloud • No syncing • Your data stays local</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Setup View (Create New Vault) -->
+            <div class="view hidden" id="setupView">
+                <div class="auth-container">
+                    <div class="auth-card glass">
+                        <div class="auth-header">
+                            <button class="back-btn" id="backFromSetup">← Back</button>
+                            <span class="auth-icon"></span>
+                            <h1>Generate a Vault</h1>
+                            <p>Create your master key to secure your vault</p>
+                        </div>
+                        <form id="setupForm" class="auth-form" autocomplete="off">
+                            <div class="form-group">
+                                <label for="usernameSetup">Username</label>
+                                <div class="input-wrapper">
+                                    <input type="text" id="usernameSetup" placeholder="Enter your username" required
+                                        autocomplete="off">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="masterKeySetup">Master Key</label>
+                                <div class="input-wrapper">
+                                    <input type="password" id="masterKeySetup" placeholder="Enter a strong master key"
+                                        required autocomplete="new-password">
+                                    <button type="button" class="toggle-password" data-target="masterKeySetup"></button>
+                                </div>
+                                <div class="password-strength-mini" id="setupStrength"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="masterKeyConfirm">Confirm Master Key</label>
+                                <div class="input-wrapper">
+                                    <input type="password" id="masterKeyConfirm" placeholder="Confirm your master key"
+                                        required autocomplete="new-password">
+                                    <button type="button" class="toggle-password"
+                                        data-target="masterKeyConfirm"></button>
+                                </div>
+                            </div>
+                            <div class="warning-box">
+                                <span class="warning-icon"></span>
+                                <p><strong>Important:</strong> Your master key cannot be recovered. If you forget it,
+                                    all data will be permanently lost.</p>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-full">Create Vault</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unlock View (Open Existing Vault) -->
+            <div class="view hidden" id="unlockView">
+                <div class="auth-container">
+                    <div class="auth-card glass">
+                        <div class="auth-header">
+                            <button class="back-btn" id="backFromUnlock">← Back</button>
+                            <span class="auth-icon"></span>
+                            <h1>Open Vault</h1>
+                            <p>Enter your master key to access your passwords</p>
+                        </div>
+                        <form id="unlockForm" class="auth-form" autocomplete="off">
+                            <div class="form-group">
+                                <label for="masterKeyUnlock">Master Key</label>
+                                <div class="input-wrapper">
+                                    <input type="password" id="masterKeyUnlock" placeholder="Enter your master key"
+                                        required autocomplete="current-password">
+                                    <button type="button" class="toggle-password"
+                                        data-target="masterKeyUnlock"></button>
+                                </div>
+                                <p class="error-message hidden" id="unlockError">Incorrect master key or no vault found.
+                                    Please try again.</p>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-full">Unlock</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vault View -->
+            <div class="view hidden" id="vaultView">
+                <div class="view-header">
+                    <h1>Password Vault</h1>
+                    <button class="btn btn-primary" id="addCredentialBtn">
+                        <span>+</span> Add Credential
+                    </button>
+                </div>
+                <div class="search-bar">
+                    <input type="text" id="vaultSearch" placeholder="Search credentials...">
+                    <span class="search-icon"></span>
+                </div>
+                <div class="credentials-list" id="credentialsList">
+                    <!-- Credentials will be rendered here -->
+                </div>
+                <div class="empty-state hidden" id="emptyVault">
+                    <span class="empty-icon"></span>
+                    <h2>Your vault is empty</h2>
+                    <p>Add your first credential to get started</p>
+                </div>
+            </div>
+
+            <!-- Analyzer View -->
+            <div class="view hidden" id="analyzerView">
+                <div class="view-header">
+                    <h1>Password Analyzer</h1>
+                    <p class="view-subtitle">Check the strength of any password</p>
+                </div>
+                <div class="analyzer-container">
+                    <div class="analyzer-card glass">
+                        <div class="form-group">
+                            <label for="analyzerInput">Enter Password to Analyze</label>
+                            <div class="input-wrapper">
+                                <input type="password" id="analyzerInput" placeholder="Type a password...">
+                                <button type="button" class="toggle-password" data-target="analyzerInput">👁️</button>
+                            </div>
+                        </div>
+
+                        <div class="strength-meter">
+                            <div class="strength-bar">
+                                <div class="strength-fill" id="strengthFill"></div>
+                            </div>
+                            <div class="strength-label" id="strengthLabel">Enter a password</div>
+                        </div>
+
+                        <div class="rules-checklist" id="rulesChecklist">
+                            <div class="rule" data-rule="length">
+                                <span class="rule-icon">○</span>
+                                <span class="rule-text">Minimum 8 characters</span>
+                            </div>
+                            <div class="rule" data-rule="uppercase">
+                                <span class="rule-icon">○</span>
+                                <span class="rule-text">Uppercase letters (A-Z)</span>
+                            </div>
+                            <div class="rule" data-rule="lowercase">
+                                <span class="rule-icon">○</span>
+                                <span class="rule-text">Lowercase letters (a-z)</span>
+                            </div>
+                            <div class="rule" data-rule="numbers">
+                                <span class="rule-icon">○</span>
+                                <span class="rule-text">Numbers (0-9)</span>
+                            </div>
+                            <div class="rule" data-rule="special">
+                                <span class="rule-icon">○</span>
+                                <span class="rule-text">Special characters (!@#$...)</span>
+                            </div>
+                        </div>
+
+                        <div class="security-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Entropy</span>
+                                <span class="metric-value" id="entropyValue">0 bits</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Strength</span>
+                                <span class="metric-value" id="strengthPercent">0%</span>
+                            </div>
+                            <div class="metric highlight">
+                                <span class="metric-label">Brute-Force Time</span>
+                                <span class="metric-value" id="crackTime">Instant</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generator View -->
+            <div class="view hidden" id="generatorView">
+                <div class="view-header">
+                    <h1>Password Generator</h1>
+                    <p class="view-subtitle">Generate secure, random passwords</p>
+                </div>
+                <div class="generator-container">
+                    <div class="generator-card glass">
+                        <div class="generated-password-display">
+                            <input type="text" id="generatedPassword" readonly placeholder="Click Generate">
+                            <div class="password-actions">
+                                <button class="icon-btn" id="copyPasswordBtn" title="Copy">📋</button>
+                                <button class="icon-btn" id="regenerateBtn" title="Regenerate">🔄</button>
+                            </div>
+                        </div>
+
+                        <div class="generator-options">
+                            <div class="option-group">
+                                <label for="passwordLength">Password Length: <span id="lengthValue">16</span></label>
+                                <input type="range" id="passwordLength" min="8" max="64" value="16">
+                            </div>
+
+                            <div class="option-group">
+                                <label for="memorability">Memorability</label>
+                                <div class="memorability-slider">
+                                    <span class="slider-label">Max Security</span>
+                                    <input type="range" id="memorability" min="0" max="100" value="0">
+                                    <span class="slider-label">Memorable</span>
+                                </div>
+                            </div>
+
+                            <div class="checkbox-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="includeUppercase" checked>
+                                    <span class="checkmark"></span>
+                                    Uppercase (A-Z)
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="includeLowercase" checked>
+                                    <span class="checkmark"></span>
+                                    Lowercase (a-z)
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="includeNumbers" checked>
+                                    <span class="checkmark"></span>
+                                    Numbers (0-9)
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="includeSymbols" checked>
+                                    <span class="checkmark"></span>
+                                    Symbols (!@#$...)
+                                </label>
+                            </div>
+
+                            <div class="option-group">
+                                <label for="keywordInput">Include Keyword (optional)</label>
+                                <input type="text" id="keywordInput" placeholder="e.g., mysite">
+                            </div>
+                        </div>
+
+                        <div class="security-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Entropy</span>
+                                <span class="metric-value" id="genEntropyValue">0 bits</span>
+                            </div>
+                            <div class="metric highlight">
+                                <span class="metric-label">Crack Time</span>
+                                <span class="metric-value" id="genCrackTime">-</span>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-full" id="generateBtn">Generate Password</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Add/Edit Credential -->
+    <div class="modal-overlay hidden" id="credentialModal">
+        <div class="modal glass">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Credential</h2>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <form id="credentialForm">
+                <input type="hidden" id="credentialId">
+                <div class="form-group">
+                    <label for="credentialSite">Website / App</label>
+                    <input type="text" id="credentialSite" placeholder="e.g., github.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="credentialUsername">Username / Email</label>
+                    <input type="text" id="credentialUsername" placeholder="e.g., user@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="credentialPassword">Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="credentialPassword" placeholder="Enter password" required>
+                        <button type="button" class="toggle-password" data-target="credentialPassword">👁️</button>
+                        <button type="button" class="icon-btn generate-inline" id="generateInlineBtn"
+                            title="Generate">⚡</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="credentialNotes">Notes (optional)</label>
+                    <textarea id="credentialNotes" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelModal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast hidden" id="toast">
+        <span class="toast-message"></span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/crypto.js"></script>
+    <script src="js/session.js"></script>
+    <script src="js/vault.js"></script>
+    <script src="js/analyzer.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
