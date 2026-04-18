@@ -40,6 +40,10 @@ const App = (function () {
         elements.analyzerView = document.getElementById('analyzerView');
         elements.generatorView = document.getElementById('generatorView');
         elements.sidebar = document.getElementById('sidebar');
+        elements.bottomNav = document.getElementById('bottomNav');
+        elements.mobileHeader = document.getElementById('mobileHeader');
+        elements.mobileSettingsBtn = document.getElementById('mobileSettingsBtn');
+        elements.mobileLockBtn = document.getElementById('mobileLockBtn');
 
         elements.setupForm = document.getElementById('setupForm');
         elements.unlockForm = document.getElementById('unlockForm');
@@ -119,6 +123,8 @@ const App = (function () {
 
         elements.unlockForm.addEventListener('submit', handleUnlock);
         elements.lockBtn.addEventListener('click', () => Session.lock());
+        elements.mobileLockBtn.addEventListener('click', () => Session.lock());
+        elements.mobileSettingsBtn.addEventListener('click', openSettingsModal);
 
         elements.settingsBtn.addEventListener('click', openSettingsModal);
         elements.closeSettings.addEventListener('click', closeSettingsModal);
@@ -214,10 +220,15 @@ const App = (function () {
                 view.classList.add('hidden');
             });
 
-        if (['landing', 'setup', 'unlock'].includes(viewName)) {
+        const isAuthView = ['landing', 'setup', 'unlock'].includes(viewName);
+        if (isAuthView) {
             elements.sidebar.classList.add('hidden');
+            elements.bottomNav.classList.add('hidden');
+            elements.mobileHeader.classList.add('hidden');
         } else {
             elements.sidebar.classList.remove('hidden');
+            elements.bottomNav.classList.remove('hidden');
+            elements.mobileHeader.classList.remove('hidden');
         }
 
         const view = document.getElementById(viewName + 'View');

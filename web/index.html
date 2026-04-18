@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description"
         content="SafeKey - A local-only, encrypted password manager. No cloud, no syncing, complete security.">
     <meta name="theme-color" content="#14b8a6">
@@ -15,6 +15,15 @@
 </head>
 
 <body>
+    <!-- Mobile Top Header -->
+    <header class="mobile-header hidden" id="mobileHeader">
+        <span class="mobile-header-title">SafeKey</span>
+        <div class="mobile-header-actions">
+            <button class="icon-action-btn" id="mobileSettingsBtn" title="Settings">⚙</button>
+            <button class="icon-action-btn" id="mobileLockBtn" title="Lock">🔒</button>
+        </div>
+    </header>
+
     <div class="app-container">
         <!-- Navigation Sidebar -->
         <nav class="sidebar" id="sidebar">
@@ -461,6 +470,26 @@
             </div>
         </div>
     </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav hidden" id="bottomNav">
+        <button class="nav-item bottom-nav-item" data-view="vault">
+            <span class="bnav-icon">🔐</span>
+            <span class="bnav-label">Vault</span>
+        </button>
+        <button class="nav-item bottom-nav-item" data-view="health">
+            <span class="bnav-icon">❤️</span>
+            <span class="bnav-label">Health</span>
+        </button>
+        <button class="nav-item bottom-nav-item" data-view="analyzer">
+            <span class="bnav-icon">🔍</span>
+            <span class="bnav-label">Analyzer</span>
+        </button>
+        <button class="nav-item bottom-nav-item" data-view="generator">
+            <span class="bnav-icon">⚡</span>
+            <span class="bnav-label">Generator</span>
+        </button>
+    </nav>
 
     <!-- Toast Notification -->
     <div class="toast hidden" id="toast">
