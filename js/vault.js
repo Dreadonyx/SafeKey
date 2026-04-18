@@ -162,6 +162,8 @@ const Vault = (function () {
         // Prepare credential data
         const credentialData = {
             site: credential.site,
+            url: credential.url || '',
+            category: credential.category || '',
             username: credential.username,
             password: credential.password,
             notes: credential.notes || '',
@@ -294,7 +296,10 @@ const Vault = (function () {
      * @returns {string}
      */
     function generateId() {
-        return 'cred_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+        const randomBytes = new Uint8Array(9);
+        crypto.getRandomValues(randomBytes);
+        const randomPart = Array.from(randomBytes).map(b => b.toString(36)).join('');
+        return 'cred_' + Date.now().toString(36) + '_' + randomPart;
     }
 
     /**
@@ -317,6 +322,12 @@ const Vault = (function () {
     function importVault(exportedData) {
         try {
             const data = JSON.parse(exportedData);
+            if (typeof data.salt !== 'string' || typeof data.verify !== 'string' || typeof data.data !== 'string') {
+                throw new Error('Invalid vault structure');
+            }
+            // Validate data fields parse correctly before storing
+            JSON.parse(data.verify);
+            JSON.parse(data.data);
             localStorage.setItem(STORAGE_KEYS.VAULT_SALT, data.salt);
             localStorage.setItem(STORAGE_KEYS.VAULT_VERIFY, data.verify);
             localStorage.setItem(STORAGE_KEYS.VAULT_DATA, data.data);
