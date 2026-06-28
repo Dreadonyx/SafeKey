@@ -928,7 +928,7 @@ input[type="range"] {
 }
 
 /* ============================================
-   Breach check
+   Breach check (modal inline)
    ============================================ */
 .breach-check-row {
     display: flex; align-items: center;
@@ -944,6 +944,103 @@ input[type="range"] {
 
 .btn-breach-check:hover { border-color: var(--border-accent); color: var(--text-primary); }
 .breach-result { font-size: 0.8rem; font-weight: 500; }
+.breach-bad  { color: var(--danger); }
+.breach-good { color: var(--success); }
+.breach-warn { color: var(--warning); }
+
+/* ============================================
+   Breach Scanner (Health view)
+   ============================================ */
+.breach-scanner {
+    padding: var(--spacing-md) var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.breach-scanner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.breach-scanner-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.breach-scanner-subtitle {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.breach-scanner-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.breach-last-scan {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Progress bar */
+.breach-scan-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.breach-progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.breach-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #22d3ee);
+    border-radius: var(--radius-full);
+    transition: width 0.35s ease;
+}
+
+.breach-progress-label {
+    font-size: 0.775rem;
+    color: var(--text-secondary);
+    transition: color 0.3s;
+}
+
+/* "?" unscan stat */
+.breach-unscan {
+    color: var(--text-muted);
+    font-size: 1.75rem;
+}
+
+/* Spinner inside scan button */
+.scan-spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
 
 /* ============================================
    Settings

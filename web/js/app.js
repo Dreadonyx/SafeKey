@@ -645,6 +645,9 @@ const App = (function () {
 
     // ─── Health View ──────────────────────────────────────────────────────────
 
+    // Stores last breach scan results so re-visiting Health tab shows them
+    let _lastBreachResults = null;
+
     async function loadHealthView() {
         elements.healthContent.innerHTML = '<p style="color:var(--text-muted)">Analyzing vault...</p>';
 
@@ -661,7 +664,7 @@ const App = (function () {
 
         // Categorize issues
         const weak = all.filter(c => Analyzer.analyze(c.password).strength < 40);
-        const old = all.filter(c => isOld(c.updatedAt));
+        const old  = all.filter(c => isOld(c.updatedAt));
 
         // Detect reused passwords
         const passMap = {};
@@ -671,7 +674,29 @@ const App = (function () {
         });
         const reused = all.filter(c => passMap[c.password].length > 1);
 
-        const score = Math.max(0, 100 - (weak.length * 15) - (reused.length * 10) - (old.length * 5));
+        // Breached credentials from last scan (null = not scanned yet)
+        const breached = _lastBreachResults
+            ? all.filter(c => (_lastBreachResults[c.password] || 0) > 0)
+            : null;
+
+        const breachedCount = breached ? breached.length : 0;
+        const score = Math.max(0, 100
+            - (weak.length     * 15)
+            - (reused.length   * 10)
+            - (old.length      *  5)
+            - (breachedCount   * 20)
+        );
+
+        // Breach stat cell varies by scan state
+        const breachStatContent = _lastBreachResults === null
+            ? `<div class="health-stat" id="breachStatCell">
+                   <div class="health-stat-number breach-unscan">?</div>
+                   <div class="health-stat-label">Breached</div>
+               </div>`
+            : `<div class="health-stat ${breachedCount > 0 ? 'danger' : 'good'}" id="breachStatCell">
+                   <div class="health-stat-number">${breachedCount}</div>
+                   <div class="health-stat-label">Breached</div>
+               </div>`;
 
         elements.healthContent.innerHTML = `
             <div class="health-score-row">
@@ -683,6 +708,31 @@ const App = (function () {
                     </div>
                 </div>
             </div>
+
+            <!-- Breach Scanner -->
+            <div class="breach-scanner glass" id="breachScanner">
+                <div class="breach-scanner-header">
+                    <div class="breach-scanner-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        Pwned Password Check
+                    </div>
+                    <span class="breach-scanner-subtitle">k-Anonymity — only 5 SHA-1 chars leave this device</span>
+                </div>
+                <div class="breach-scan-progress hidden" id="breachProgress">
+                    <div class="breach-progress-bar">
+                        <div class="breach-progress-fill" id="breachProgressFill" style="width:0%"></div>
+                    </div>
+                    <div class="breach-progress-label" id="breachProgressLabel">Scanning…</div>
+                </div>
+                <div class="breach-scanner-actions">
+                    <button class="btn btn-secondary" id="scanBreachBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        ${_lastBreachResults !== null ? 'Re-scan All Passwords' : 'Scan All Passwords'}
+                    </button>
+                    ${_lastBreachResults !== null ? '<span class="breach-last-scan" id="breachLastScanLabel">Scan complete</span>' : ''}
+                </div>
+            </div>
+
             <div class="health-stats">
                 <div class="health-stat">
                     <div class="health-stat-number">${all.length}</div>
@@ -700,8 +750,9 @@ const App = (function () {
                     <div class="health-stat-number">${old.length}</div>
                     <div class="health-stat-label">Old (90+ days)</div>
                 </div>
+                ${breachStatContent}
             </div>
-            <div class="health-issues">
+            <div class="health-issues" id="healthIssues">
                 ${renderHealthGroup('Weak Passwords', weak, 'danger', c => {
                     const s = Analyzer.analyze(c.password).strength;
                     return `Strength: ${s}%`;
@@ -713,7 +764,143 @@ const App = (function () {
                 ${renderHealthGroup('Old Passwords', old, 'warning', c => {
                     return `Last changed ${formatAge(c.updatedAt)}`;
                 })}
+                ${breached && breached.length > 0 ? renderHealthGroup('Breached Passwords', breached, 'danger', c => {
+                    const count = _lastBreachResults[c.password];
+                    return `Found in ${count.toLocaleString()} breaches`;
+                }) : ''}
             </div>`;
+
+        // Bind scan button
+        document.getElementById('scanBreachBtn').addEventListener('click', () => scanVaultBreaches(all));
+    }
+
+    /**
+     * Checks a single password against HIBP using k-Anonymity.
+     * Sends only the first 5 chars of SHA-1 — suffix stays local.
+     * @param {string} password
+     * @returns {Promise<number>} breach count (0 = not found)
+     */
+    async function hibpCheckPassword(password) {
+        const hash   = await sha1Hex(password);
+        const prefix = hash.substring(0, 5);
+        const suffix = hash.substring(5);
+
+        const controller = new AbortController();
+        const timeoutId  = setTimeout(() => controller.abort(), 8000);
+        let response;
+        try {
+            response = await fetch(
+                `https://api.pwnedpasswords.com/range/${prefix}`,
+                { signal: controller.signal }
+            );
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        if (!response.ok) throw new Error(`HIBP API ${response.status}`);
+
+        const text = await response.text();
+        for (const line of text.split('\n')) {
+            const [h, c] = line.split(':');
+            if (h.trim() === suffix) return parseInt(c.trim(), 10);
+        }
+        return 0;
+    }
+
+    /**
+     * Scans all vault passwords against HIBP with deduplication + rate limiting.
+     * - Same password → single API call, result reused across all matching creds.
+     * - 600ms gap between distinct HIBP requests.
+     * @param {Array} all - decrypted credentials array
+     */
+    async function scanVaultBreaches(all) {
+        const btn       = document.getElementById('scanBreachBtn');
+        const progress  = document.getElementById('breachProgress');
+        const fill      = document.getElementById('breachProgressFill');
+        const label     = document.getElementById('breachProgressLabel');
+        const statCell  = document.getElementById('breachStatCell');
+
+        if (!btn) return;
+        btn.disabled    = true;
+        btn.innerHTML   = '<span class="scan-spinner"></span> Scanning…';
+        progress.classList.remove('hidden');
+
+        // Deduplicate — unique passwords only
+        const uniquePasswords = [...new Set(all.map(c => c.password))];
+        const results = {};   // password → breach count
+        let checked   = 0;
+        let networkError = false;
+
+        for (const password of uniquePasswords) {
+            checked++;
+            const pct = Math.round((checked / uniquePasswords.length) * 100);
+            fill.style.width  = pct + '%';
+            label.textContent = `Checking ${checked} / ${uniquePasswords.length} unique passwords…`;
+
+            try {
+                results[password] = await hibpCheckPassword(password);
+            } catch {
+                results[password] = -1; // -1 = error / no result
+                networkError = true;
+            }
+
+            // Rate-limit gap between requests (skip after last)
+            if (checked < uniquePasswords.length) {
+                await new Promise(r => setTimeout(r, 600));
+            }
+        }
+
+        // Store results globally so health view can use them
+        _lastBreachResults = results;
+
+        // Summary
+        fill.style.width  = '100%';
+        const breachedCount = all.filter(c => (results[c.password] || 0) > 0).length;
+        label.textContent   = networkError
+            ? `Scan complete (some checks failed) — ${breachedCount} compromised password${breachedCount !== 1 ? 's' : ''} found`
+            : `Scan complete — ${breachedCount} compromised password${breachedCount !== 1 ? 's' : ''} found`;
+        label.style.color = breachedCount > 0 ? 'var(--danger)' : 'var(--success)';
+
+        btn.disabled  = false;
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Re-scan All Passwords';
+
+        // Update breach stat cell inline (no full re-render)
+        if (statCell) {
+            statCell.className = `health-stat ${breachedCount > 0 ? 'danger' : 'good'}`;
+            statCell.innerHTML = `
+                <div class="health-stat-number">${breachedCount}</div>
+                <div class="health-stat-label">Breached</div>`;
+        }
+
+        // Append / replace breached group in health issues
+        const issuesEl = document.getElementById('healthIssues');
+        if (issuesEl) {
+            const existing = issuesEl.querySelector('.breach-group');
+            const breached = all.filter(c => (results[c.password] || 0) > 0);
+            if (breached.length > 0) {
+                const html = `<div class="breach-group">${
+                    renderHealthGroup('Breached Passwords', breached, 'danger', c => {
+                        const count = results[c.password];
+                        return `Found in ${count.toLocaleString()} breaches`;
+                    })
+                }</div>`;
+                if (existing) {
+                    existing.outerHTML = html;
+                } else {
+                    issuesEl.insertAdjacentHTML('beforeend', html);
+                }
+            } else if (existing) {
+                existing.remove();
+            }
+        }
+
+        if (networkError) {
+            showToast('Some passwords could not be checked — network error', 'warning');
+        } else if (breachedCount > 0) {
+            showToast(`${breachedCount} compromised password${breachedCount !== 1 ? 's' : ''} found in known breaches!`, 'error');
+        } else {
+            showToast('All passwords checked — none found in known breaches', 'success');
+        }
     }
 
     function renderHealthGroup(title, items, severity, detailFn) {
