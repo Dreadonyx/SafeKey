@@ -68,41 +68,41 @@ const Generator = (function () {
     // Pattern: [Adj][Noun][Symbol][Number]  e.g. BlueStorm#42
 
     function generateReadable(config, keyword) {
-        const symbols = config.symbols !== false ? CHARS.symbols : '';
-        const useNums = config.numbers !== false;
+        const symbols  = config.symbols !== false ? CHARS.symbols : '';
+        const useNums  = config.numbers !== false;
+        const count    = Math.max(2, Math.min(4, config.wordCount || 2));
 
-        // Pick two words (or use keyword as one)
-        let word1, word2;
+        let words = [];
         if (keyword) {
-            word1 = capitalize(keyword);
-            word2 = capitalize(pick(NOUNS));
+            words.push(capitalize(keyword));
+            for (let i = 1; i < count; i++) words.push(capitalize(pick(NOUNS)));
         } else {
-            word1 = capitalize(pick(ADJECTIVES));
-            word2 = capitalize(pick(NOUNS));
+            words.push(capitalize(pick(ADJECTIVES)));
+            for (let i = 1; i < count; i++) words.push(capitalize(pick(NOUNS)));
         }
 
         const sym = symbols ? pick(symbols.split('')) : '';
-        const num = useNums ? String(secureRandomInt(900) + 100) : '';  // 3-digit
+        const num = useNums ? String(secureRandomInt(900) + 100) : '';
 
-        return word1 + word2 + sym + num;
+        return words.join('') + sym + num;
     }
 
     // ── Passphrase mode ───────────────────────────────────────────────────────
     // Pattern: word-word-word-number  e.g. blue-storm-tiger-847
 
     function generatePassphrase(config, keyword) {
-        const sep    = pick(SEPARATORS);
+        const sep     = pick(SEPARATORS);
         const useNums = config.numbers !== false;
+        const count   = Math.max(3, Math.min(6, config.wordCount || 3));
 
         let words = [];
         if (keyword) {
             words.push(keyword.toLowerCase());
-            words.push(pick(ADJECTIVES));
-            words.push(pick(NOUNS));
+            const pool = ADJECTIVES.concat(NOUNS);
+            for (let i = 1; i < count; i++) words.push(pick(pool));
         } else {
-            words.push(pick(ADJECTIVES));
-            words.push(pick(NOUNS));
-            words.push(pick(ADJECTIVES.concat(NOUNS)));
+            const pool = ADJECTIVES.concat(NOUNS);
+            for (let i = 0; i < count; i++) words.push(pick(pool));
         }
 
         // Shuffle so keyword isn't always first

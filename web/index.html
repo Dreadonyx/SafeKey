@@ -174,8 +174,9 @@
                                 </div>
                                 <p class="error-message hidden" id="unlockError">Incorrect master key or no vault found.
                                     Please try again.</p>
+                                <p class="lockout-message hidden" id="lockoutMessage"></p>
                             </div>
-                            <button type="submit" class="btn btn-primary btn-full">Unlock</button>
+                            <button type="submit" class="btn btn-primary btn-full" id="unlockSubmitBtn">Unlock</button>
                         </form>
                     </div>
                 </div>
@@ -343,6 +344,10 @@
                             <!-- Readable / Passphrase mode info -->
                             <div id="readableOptions" class="hidden">
                                 <p class="gen-mode-desc">Generates a memorable password like <code>BlueStorm#42</code></p>
+                                <div class="option-group">
+                                    <label>Words: <span id="readableWordCountValue">2</span></label>
+                                    <input type="range" id="readableWordCount" min="2" max="4" value="2">
+                                </div>
                                 <div class="checkbox-options">
                                     <label class="checkbox-label">
                                         <input type="checkbox" id="readableNumbers" checked>
@@ -357,6 +362,10 @@
 
                             <div id="passphraseOptions" class="hidden">
                                 <p class="gen-mode-desc">Generates a phrase like <code>blue-storm-tiger-847</code></p>
+                                <div class="option-group">
+                                    <label>Words: <span id="passphraseWordCountValue">3</span></label>
+                                    <input type="range" id="passphraseWordCount" min="3" max="6" value="3">
+                                </div>
                                 <div class="checkbox-options">
                                     <label class="checkbox-label">
                                         <input type="checkbox" id="passphraseNumbers" checked>
@@ -491,6 +500,11 @@
 
             <div class="settings-section">
                 <h3 class="settings-section-title">Change Master Key</h3>
+                <p class="settings-description">
+                    Key derivation:
+                    <span id="kdfBadge" class="kdf-badge kdf-badge--unknown">detecting…</span>
+                    — Changing your master key always upgrades to <strong>Argon2id</strong>.
+                </p>
                 <form id="changeMasterKeyForm" class="auth-form" autocomplete="off">
                     <div class="form-group">
                         <label for="currentMasterKey">Current Master Key</label>
@@ -556,8 +570,11 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Argon2id WASM (loaded before crypto.js so Crypto.deriveKeyArgon2id can use it) -->
+    <script src="https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/dist/argon2-bundled.min.js"></script>
     <script src="js/crypto.js"></script>
     <script src="js/session.js"></script>
+    <script src="js/lockout.js"></script>
     <script src="js/vault.js"></script>
     <script src="js/analyzer.js"></script>
     <script src="js/generator.js"></script>

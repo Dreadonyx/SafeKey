@@ -22,6 +22,12 @@ const App = (function () {
         Session.onLock(handleVaultLock);
         showView('landing');
         registerServiceWorker();
+
+        // Restore lockout state if page was reloaded during a cooldown
+        if (Lockout.isLocked()) {
+            Lockout.startCountdown(elements.lockoutMessage, elements.unlockSubmitBtn);
+        }
+
         console.log('[SafeKey] Application initialized');
     }
 
@@ -96,12 +102,15 @@ const App = (function () {
 
         elements.credentialsList = document.getElementById('credentialsList');
         elements.emptyVault = document.getElementById('emptyVault');
-        elements.unlockError = document.getElementById('unlockError');
-        elements.setupStrength = document.getElementById('setupStrength');
+        elements.unlockError       = document.getElementById('unlockError');
+        elements.lockoutMessage     = document.getElementById('lockoutMessage');
+        elements.unlockSubmitBtn    = document.getElementById('unlockSubmitBtn');
+        elements.setupStrength      = document.getElementById('setupStrength');
         elements.newMasterKeyStrength = document.getElementById('newMasterKeyStrength');
-        elements.toast = document.getElementById('toast');
-        elements.healthContent = document.getElementById('healthContent');
-        elements.categoryFilter = document.getElementById('categoryFilter');
+        elements.toast              = document.getElementById('toast');
+        elements.healthContent      = document.getElementById('healthContent');
+        elements.categoryFilter     = document.getElementById('categoryFilter');
+        elements.kdfBadge           = document.getElementById('kdfBadge');
     }
 
     function bindEvents() {
@@ -169,15 +178,18 @@ const App = (function () {
         });
         elements.breachCheckBtn.addEventListener('click', handleBreachCheck);
 
+        const eyeOpen  = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+        const eyeClosed = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
         document.querySelectorAll('.toggle-password').forEach(btn => {
+            btn.innerHTML = eyeOpen;
             btn.addEventListener('click', () => {
                 const target = document.getElementById(btn.dataset.target);
                 if (target.type === 'password') {
                     target.type = 'text';
-                    btn.textContent = '🙈';
+                    btn.innerHTML = eyeClosed;
                 } else {
                     target.type = 'password';
-                    btn.textContent = '👁️';
+                    btn.innerHTML = eyeOpen;
                 }
             });
         });
@@ -186,6 +198,12 @@ const App = (function () {
 
         elements.passwordLength.addEventListener('input', () => {
             elements.lengthValue.textContent = elements.passwordLength.value;
+        });
+        document.getElementById('readableWordCount').addEventListener('input', e => {
+            document.getElementById('readableWordCountValue').textContent = e.target.value;
+        });
+        document.getElementById('passphraseWordCount').addEventListener('input', e => {
+            document.getElementById('passphraseWordCountValue').textContent = e.target.value;
         });
         elements.generateBtn.addEventListener('click', handleGenerate);
         elements.regenerateBtn.addEventListener('click', handleGenerate);
@@ -300,21 +318,60 @@ const App = (function () {
 
     async function handleUnlock(e) {
         e.preventDefault();
+
+        // Block submission during active lockout
+        if (Lockout.isLocked()) {
+            Lockout.startCountdown(elements.lockoutMessage, elements.unlockSubmitBtn);
+            return;
+        }
+
         const password = elements.masterKeyUnlock.value;
+        // Show loading state while Argon2id hashes (can take ~1s)
+        elements.unlockSubmitBtn.textContent = 'Unlocking…';
+        elements.unlockSubmitBtn.disabled = true;
+
         try {
             const result = await Vault.unlock(password);
             if (result.success) {
+                Lockout.reset();
                 Session.start(result.key, result.salt);
                 elements.masterKeyUnlock.value = '';
                 elements.unlockError.classList.add('hidden');
-                navigateTo('vault');
-                showToast('Vault unlocked', 'success');
+                elements.lockoutMessage.classList.add('hidden');
+
+                // If vault was PBKDF2, show one-time upgrade toast
+                if (result.kdf === Crypto.KDF.PBKDF2) {
+                    navigateTo('vault');
+                    showToast('Vault unlocked (legacy PBKDF2). Change your master key in Settings to upgrade to Argon2id.', 'warning');
+                } else {
+                    navigateTo('vault');
+                    showToast('Vault unlocked', 'success');
+                }
             } else {
-                elements.unlockError.classList.remove('hidden');
+                // Record failure and start countdown if now locked out
+                const lockMs = Lockout.recordFailure();
                 elements.masterKeyUnlock.value = '';
+                elements.unlockError.classList.remove('hidden');
+
+                const attempts = Lockout.attemptCount();
+                elements.unlockError.textContent =
+                    lockMs > 0
+                        ? `Incorrect master key. Too many attempts — please wait.`
+                        : `Incorrect master key or no vault found. (${attempts} failed attempt${attempts !== 1 ? 's' : ''})`;
+
+                if (lockMs > 0) {
+                    Lockout.startCountdown(elements.lockoutMessage, elements.unlockSubmitBtn);
+                }
             }
         } catch {
             elements.unlockError.classList.remove('hidden');
+            elements.unlockError.textContent = 'An error occurred. Please try again.';
+        } finally {
+            // Re-enable button only if not in a lockout
+            if (!Lockout.isLocked()) {
+                elements.unlockSubmitBtn.textContent = 'Unlock';
+                elements.unlockSubmitBtn.disabled = false;
+            }
         }
     }
 
@@ -495,7 +552,7 @@ const App = (function () {
         const dupes = await findDuplicatePassword(credential.password, editingCredentialId);
         if (dupes.length > 0) {
             const sites = dupes.map(c => c.site).join(', ');
-            showToast(`⚠️ Password reused on: ${sites}`, 'warning');
+            showToast(`Password reused on: ${sites}`, 'warning');
             // Don't block — just warn
         }
 
@@ -539,7 +596,7 @@ const App = (function () {
             return;
         }
 
-        elements.breachCheckBtn.textContent = '⏳ Checking...';
+        elements.breachCheckBtn.textContent = 'Checking...';
         elements.breachCheckBtn.disabled = true;
         elements.breachResult.classList.add('hidden');
 
@@ -570,18 +627,18 @@ const App = (function () {
 
             elements.breachResult.classList.remove('hidden');
             if (count > 0) {
-                elements.breachResult.textContent = `⚠️ Found in ${count.toLocaleString()} breaches!`;
+                elements.breachResult.textContent = `Found in ${count.toLocaleString()} known breaches — avoid using this password`;
                 elements.breachResult.className = 'breach-result breach-bad';
             } else {
-                elements.breachResult.textContent = '✓ Not found in known breaches';
+                elements.breachResult.textContent = 'Not found in any known breaches';
                 elements.breachResult.className = 'breach-result breach-good';
             }
         } catch {
             elements.breachResult.classList.remove('hidden');
-            elements.breachResult.textContent = '⚠️ Could not reach breach API';
+            elements.breachResult.textContent = 'Could not reach breach database — check your connection';
             elements.breachResult.className = 'breach-result breach-warn';
         } finally {
-            elements.breachCheckBtn.textContent = '🔍 Check for data breaches';
+            elements.breachCheckBtn.textContent = 'Check for data breaches';
             elements.breachCheckBtn.disabled = false;
         }
     }
@@ -684,6 +741,27 @@ const App = (function () {
         elements.settingsModal.classList.remove('hidden');
         elements.changeMasterKeyForm.reset();
         document.getElementById('newMasterKeyStrength').style.setProperty('--strength', '0%');
+
+        // Show which KDF this vault currently uses
+        if (elements.kdfBadge) {
+            try {
+                const saltRaw = localStorage.getItem('safekey_salt');
+                let kdf = 'pbkdf2';
+                if (saltRaw) {
+                    try { kdf = JSON.parse(saltRaw).kdf || 'pbkdf2'; } catch { kdf = 'pbkdf2'; }
+                }
+                if (kdf === Crypto.KDF.ARGON2ID) {
+                    elements.kdfBadge.textContent = 'Argon2id ✓';
+                    elements.kdfBadge.className = 'kdf-badge kdf-badge--argon2id';
+                } else {
+                    elements.kdfBadge.textContent = 'PBKDF2 (legacy)';
+                    elements.kdfBadge.className = 'kdf-badge kdf-badge--pbkdf2';
+                }
+            } catch {
+                elements.kdfBadge.textContent = 'unknown';
+                elements.kdfBadge.className = 'kdf-badge kdf-badge--unknown';
+            }
+        }
     }
 
     function closeSettingsModal() {
@@ -784,15 +862,18 @@ const App = (function () {
         const mode = activeMode ? activeMode.dataset.mode : 'random';
         const result = Generator.generate({
             mode,
-            length:    parseInt(elements.passwordLength.value),
-            uppercase: elements.includeUppercase.checked,
-            lowercase: elements.includeLowercase.checked,
-            numbers:   mode === 'readable'   ? document.getElementById('readableNumbers').checked
-                     : mode === 'passphrase' ? document.getElementById('passphraseNumbers').checked
-                     : elements.includeNumbers.checked,
-            symbols:   mode === 'readable'   ? document.getElementById('readableSymbols').checked
-                     : elements.includeSymbols.checked,
-            keyword:   elements.keywordInput.value
+            length:     parseInt(elements.passwordLength.value),
+            wordCount:  mode === 'readable'   ? parseInt(document.getElementById('readableWordCount').value)
+                      : mode === 'passphrase' ? parseInt(document.getElementById('passphraseWordCount').value)
+                      : 2,
+            uppercase:  elements.includeUppercase.checked,
+            lowercase:  elements.includeLowercase.checked,
+            numbers:    mode === 'readable'   ? document.getElementById('readableNumbers').checked
+                      : mode === 'passphrase' ? document.getElementById('passphraseNumbers').checked
+                      : elements.includeNumbers.checked,
+            symbols:    mode === 'readable'   ? document.getElementById('readableSymbols').checked
+                      : elements.includeSymbols.checked,
+            keyword:    elements.keywordInput.value
         });
         elements.generatedPassword.value = result.password;
         document.getElementById('genEntropyValue').textContent = Math.round(result.entropy) + ' bits';

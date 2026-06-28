@@ -16,6 +16,7 @@ val tauriProperties = Properties().apply {
 android {
     compileSdk = 36
     namespace = "com.dreadonyx.safekey"
+    ndkVersion = "27.0.12077973"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.dreadonyx.safekey"

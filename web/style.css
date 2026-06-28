@@ -632,6 +632,25 @@ input[type="range"] {
     color: var(--danger); font-size: 0.8rem; margin-top: 4px;
 }
 
+.lockout-message {
+    color: var(--warning);
+    font-size: 0.8rem;
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: var(--warning-dim);
+    border-left: 3px solid var(--warning);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-weight: 500;
+    animation: fadeIn 0.2s ease;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
 /* ============================================
    Buttons
    ============================================ */
@@ -839,11 +858,14 @@ input[type="range"] {
     text-align: center;
     padding: var(--spacing-2xl) var(--spacing-lg);
     color: var(--text-muted);
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .empty-icon { font-size: 2.5rem; display: block; margin-bottom: var(--spacing-md); }
-.empty-state h2 { font-size: 1.05rem; color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
-.empty-state p  { font-size: 0.82rem; }
+.empty-state h2 { font-size: 1.05rem; color: var(--text-secondary); margin-bottom: var(--spacing-sm); word-break: break-word; }
+.empty-state p  { font-size: 0.82rem; word-break: break-word; padding: 0 var(--spacing-sm); }
 
 /* ============================================
    Glass (used in health/analyzer - now flat)
@@ -948,6 +970,31 @@ input[type="range"] {
 
 .settings-actions { display: flex; gap: var(--spacing-sm); flex-wrap: wrap; }
 .settings-import-label { cursor: pointer; }
+
+/* KDF badge */
+.kdf-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    vertical-align: middle;
+}
+.kdf-badge--argon2id {
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+.kdf-badge--pbkdf2 {
+    background: var(--warning-dim);
+    color: var(--warning);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+.kdf-badge--unknown {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
 
 /* ============================================
    Health View

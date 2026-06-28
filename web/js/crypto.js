@@ -1,10 +1,16 @@
 /**
  * SafeKey Cryptographic Utilities
- * 
+ *
  * Implements secure cryptographic operations using Web Crypto API:
- * - PBKDF2 key derivation (100,000 iterations)
+ * - Argon2id key derivation (memory-hard, modern default)
+ * - PBKDF2 key derivation (legacy, for existing vaults)
  * - AES-256-GCM authenticated encryption
  * - Cryptographically secure random generation
+ *
+ * KDF selection:
+ *   New vaults always use Argon2id (memory=65536 KiB, t=3, p=1).
+ *   Old PBKDF2 vaults are unlocked via the legacy path and can be
+ *   upgraded to Argon2id through Settings → Change Master Key.
  */
 
 const Crypto = (function() {
@@ -12,11 +18,24 @@ const Crypto = (function() {
 
     // Configuration
     const CONFIG = {
+        // Argon2id parameters (OWASP recommended minimums)
+        ARGON2_MEMORY:     65536,   // 64 MiB
+        ARGON2_TIME:       3,       // iterations
+        ARGON2_PARALLELISM:1,
+        ARGON2_HASH_LEN:   32,      // 256-bit output
+        // Legacy PBKDF2
         PBKDF2_ITERATIONS: 100000,
-        SALT_LENGTH: 16,
-        IV_LENGTH: 12,
-        KEY_LENGTH: 256,
+        // Shared
+        SALT_LENGTH: 32,            // 256-bit salt (used for both KDFs)
+        IV_LENGTH:   12,
+        KEY_LENGTH:  256,
         HASH_ALGORITHM: 'SHA-256'
+    };
+
+    // KDF type constants
+    const KDF = {
+        ARGON2ID: 'argon2id',
+        PBKDF2:   'pbkdf2'
     };
 
     /**
@@ -91,13 +110,45 @@ const Crypto = (function() {
     }
 
     /**
-     * Derives a cryptographic key from master password using PBKDF2
-     * @param {string} masterPassword - User's master password
-     * @param {Uint8Array} salt - Salt for key derivation
-     * @returns {Promise<CryptoKey>} Derived AES-GCM key
+     * Derives a key using Argon2id (memory-hard, default for new vaults).
+     * Requires the argon2-browser WASM library to be loaded.
+     * @param {string} masterPassword
+     * @param {Uint8Array} salt
+     * @returns {Promise<CryptoKey>} AES-GCM key
      */
-    async function deriveKey(masterPassword, salt) {
-        // Import master password as raw key material
+    async function deriveKeyArgon2id(masterPassword, salt) {
+        if (typeof window.argon2 === 'undefined') {
+            throw new Error('Argon2 WASM library not loaded');
+        }
+
+        const result = await window.argon2.hash({
+            pass:   masterPassword,
+            salt:   salt,
+            type:   window.argon2.ArgonType.Argon2id,
+            mem:    CONFIG.ARGON2_MEMORY,
+            time:   CONFIG.ARGON2_TIME,
+            parallelism: CONFIG.ARGON2_PARALLELISM,
+            hashLen: CONFIG.ARGON2_HASH_LEN,
+            distrib: false  // Don't split into workers (keep deterministic)
+        });
+
+        // Import the raw 32-byte hash as an AES-GCM key
+        return crypto.subtle.importKey(
+            'raw',
+            result.hash,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
+
+    /**
+     * Derives a key using legacy PBKDF2 (for existing vaults only).
+     * @param {string} masterPassword
+     * @param {Uint8Array} salt
+     * @returns {Promise<CryptoKey>} AES-GCM key
+     */
+    async function deriveKeyPBKDF2(masterPassword, salt) {
         const keyMaterial = await crypto.subtle.importKey(
             'raw',
             stringToBytes(masterPassword),
@@ -105,23 +156,32 @@ const Crypto = (function() {
             false,
             ['deriveKey']
         );
-
-        // Derive AES-GCM key using PBKDF2
         return crypto.subtle.deriveKey(
             {
-                name: 'PBKDF2',
-                salt: salt,
+                name:       'PBKDF2',
+                salt:       salt,
                 iterations: CONFIG.PBKDF2_ITERATIONS,
-                hash: CONFIG.HASH_ALGORITHM
+                hash:       CONFIG.HASH_ALGORITHM
             },
             keyMaterial,
-            {
-                name: 'AES-GCM',
-                length: CONFIG.KEY_LENGTH
-            },
-            false, // Not extractable
+            { name: 'AES-GCM', length: CONFIG.KEY_LENGTH },
+            false,
             ['encrypt', 'decrypt']
         );
+    }
+
+    /**
+     * Unified key derivation — dispatches to Argon2id or PBKDF2.
+     * @param {string} masterPassword
+     * @param {Uint8Array} salt
+     * @param {string} [kdfType='argon2id'] - KDF.ARGON2ID or KDF.PBKDF2
+     * @returns {Promise<CryptoKey>}
+     */
+    async function deriveKey(masterPassword, salt, kdfType = KDF.ARGON2ID) {
+        if (kdfType === KDF.PBKDF2) {
+            return deriveKeyPBKDF2(masterPassword, salt);
+        }
+        return deriveKeyArgon2id(masterPassword, salt);
     }
 
     /**
@@ -185,9 +245,12 @@ const Crypto = (function() {
 
     // Public API
     return {
+        KDF,
         generateSalt,
         generateIV,
         deriveKey,
+        deriveKeyArgon2id,
+        deriveKeyPBKDF2,
         encrypt,
         decrypt,
         hash,
