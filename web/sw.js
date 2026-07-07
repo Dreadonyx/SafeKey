@@ -3,19 +3,22 @@
  * Enables offline use by caching all app assets.
  */
 
-const CACHE_NAME = 'safekey-v1';
+const CACHE_NAME = 'safekey-v12';
 const ASSETS = [
     '/',
     '/index.html',
     '/style.css',
     '/manifest.json',
     '/favicon.svg',
+    '/safekey.png',
     '/js/app.js',
     '/js/crypto.js',
     '/js/vault.js',
     '/js/session.js',
+    '/js/lockout.js',
     '/js/analyzer.js',
-    '/js/generator.js'
+    '/js/generator.js',
+    '/js/totp.js'
 ];
 
 self.addEventListener('install', event => {

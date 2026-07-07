@@ -24,7 +24,7 @@ const Crypto = (function() {
         ARGON2_PARALLELISM:1,
         ARGON2_HASH_LEN:   32,      // 256-bit output
         // Legacy PBKDF2
-        PBKDF2_ITERATIONS: 100000,
+        PBKDF2_ITERATIONS: 600000,
         // Shared
         SALT_LENGTH: 32,            // 256-bit salt (used for both KDFs)
         IV_LENGTH:   12,

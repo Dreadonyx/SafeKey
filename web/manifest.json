@@ -4,8 +4,8 @@
   "description": "Local-only encrypted password manager. No cloud, no syncing.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#14b8a6",
+  "background_color": "#060a13",
+  "theme_color": "#00e5ff",
   "orientation": "portrait-primary",
   "icons": [
     {

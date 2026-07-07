@@ -1,0 +1,548 @@
+
+--- web/js/crypto.js --- (1 conflicts)
+
+Conflict 1:
+UPSTREAM (My Logic):
+        // Argon2id parameters (OWASP recommended minimums)
+        ARGON2_MEMORY:     65536,   // 64 MiB
+        ARGON2_TIME:       3,       // iterations
+        ARGON2_PARALLELISM:1,
+        ARGON2_HASH_LEN:   32,      // 256-bit output
+        // Legacy PBKDF2
+        PBKDF2_ITERATIONS: 100000,
+        // Shared
+        SALT_LENGTH: 32,            // 256-bit salt (used for both KDFs)
+        IV_LENGTH:   12,
+        KEY_LENGTH:  256,
+
+=======
+        PBKDF2_ITERATIONS: 600000,
+        SALT_LENGTH: 16,
+        IV_LENGTH: 12,
+        KEY_LENGTH: 256,
+>>>>>>> Stashed changes
+
+--- web/js/vault.js --- (2 conflicts)
+
+Conflict 1:
+UPSTREAM (My Logic):
+            localStorage.setItem(STORAGE_KEYS.VAULT_DATA,     JSON.stringify([]));
+
+            return { success: true, key, salt, kdf: Crypto.KDF.ARGON2ID };
+
+=======
+            localStorage.setItem(STORAGE_KEYS.VAULT_DATA, JSON.stringify([]));
+            localStorage.setItem(STORAGE_KEYS.VAULT_NOTES, JSON.stringify([]));
+
+            // Generate recovery key — encrypts the raw key bytes exported via wrapKey
+            // This avoids storing the master password; only the derived key is recoverable
+            const recoveryKey = generateRecoveryKey();
+            const recoverySalt = Crypto.generateSalt();
+            const recoveryDerivedKey = await Crypto.deriveKey(recoveryKey, recoverySalt);
+            // Export the vault key as raw bytes, then encrypt with recovery key
+            const exportedKey = await crypto.subtle.exportKey('raw',
+                await crypto.subtle.deriveKey(
+                    { name: 'PBKDF2', salt, iterations: 600000, hash: 'SHA-256' },
+                    await crypto.subtle.importKey('raw', new TextEncoder().encode(masterPassword), 'PBKDF2', false, ['deriveKey']),
+                    { name: 'AES-GCM', length: 256 },
+                    true, // extractable for export
+                    ['encrypt', 'decrypt']
+                )
+            );
+            const recoveryEncrypted = await Crypto.encrypt(
+                Crypto.arrayBufferToBase64(exportedKey), recoveryDerivedKey
+            );
+            localStorage.setItem(STORAGE_KEYS.VAULT_RECOVERY, JSON.stringify({
+                salt: Crypto.arrayBufferToBase64(recoverySalt),
+                vaultSalt: Crypto.arrayBufferToBase64(salt),
+                ciphertext: recoveryEncrypted.ciphertext,
+                iv: recoveryEncrypted.iv
+            }));
+
+            return { success: true, key, salt, recoveryKey };
+>>>>>>> Stashed changes
+
+Conflict 2:
+UPSTREAM (My Logic):
+            localStorage.setItem(STORAGE_KEYS.VAULT_SALT,   newSaltBlob);
+            localStorage.setItem(STORAGE_KEYS.VAULT_VERIFY, JSON.stringify(newVerifyData));
+            localStorage.setItem(STORAGE_KEYS.VAULT_DATA,   JSON.stringify(newEncryptedData));
+
+=======
+            // Re-encrypt notes too
+            const allNotes = await getAllNotes();
+            const newEncryptedNotes = [];
+            for (const note of allNotes) {
+                const noteData = { ...note };
+                delete noteData.id;
+                const encrypted = await Crypto.encrypt(JSON.stringify(noteData), newKey);
+                newEncryptedNotes.push({ id: note.id, data: encrypted.ciphertext, iv: encrypted.iv });
+            }
+
+            localStorage.setItem(STORAGE_KEYS.VAULT_SALT, Crypto.arrayBufferToBase64(newSalt));
+            localStorage.setItem(STORAGE_KEYS.VAULT_VERIFY, JSON.stringify(newVerifyData));
+            localStorage.setItem(STORAGE_KEYS.VAULT_DATA, JSON.stringify(newEncryptedData));
+            localStorage.setItem(STORAGE_KEYS.VAULT_NOTES, JSON.stringify(newEncryptedNotes));
+>>>>>>> Stashed changes
+
+--- web/index.html --- (2 conflicts)
+
+Conflict 1:
+UPSTREAM (My Logic):
+                            <button type="submit" class="btn btn-primary btn-full" id="unlockSubmitBtn">Unlock</button>
+
+=======
+                            <button type="submit" class="btn btn-primary btn-full">Unlock</button>
+                            <div style="text-align:center;margin-top:var(--spacing-md)">
+                                <button type="button" class="back-btn" id="useRecoveryKeyBtn" style="align-self:center">Forgot master key? Use recovery key</button>
+                            </div>
+>>>>>>> Stashed changes
+
+Conflict 2:
+UPSTREAM (My Logic):
+    <!-- Argon2id WASM (loaded before crypto.js so Crypto.deriveKeyArgon2id can use it) -->
+    <script src="https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/dist/argon2-bundled.min.js"></script>
+
+=======
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script src="js/totp.js"></script>
+>>>>>>> Stashed changes
+
+--- web/js/app.js --- (8 conflicts)
+
+Conflict 1:
+UPSTREAM (My Logic):
+        elements.toast              = document.getElementById('toast');
+        elements.healthContent      = document.getElementById('healthContent');
+        elements.categoryFilter     = document.getElementById('categoryFilter');
+        elements.kdfBadge           = document.getElementById('kdfBadge');
+
+=======
+        elements.toast = document.getElementById('toast');
+        elements.healthContent = document.getElementById('healthContent');
+
+        // Notes elements
+        elements.notesView = document.getElementById('notesView');
+        elements.notesList = document.getElementById('notesList');
+        elements.emptyNotes = document.getElementById('emptyNotes');
+        elements.addNoteBtn = document.getElementById('addNoteBtn');
+        elements.noteModal = document.getElementById('noteModal');
+        elements.noteForm = document.getElementById('noteForm');
+        elements.noteId = document.getElementById('noteId');
+        elements.noteTitle = document.getElementById('noteTitle');
+        elements.noteContent = document.getElementById('noteContent');
+        elements.closeNoteModal = document.getElementById('closeNoteModal');
+        elements.cancelNoteModal = document.getElementById('cancelNoteModal');
+        elements.noteModalTitle = document.getElementById('noteModalTitle');
+
+        // Recovery key elements
+        elements.recoveryKeyModal = document.getElementById('recoveryKeyModal');
+        elements.recoveryKeyDisplay = document.getElementById('recoveryKeyDisplay');
+        elements.copyRecoveryKey = document.getElementById('copyRecoveryKey');
+        elements.confirmRecoveryKey = document.getElementById('confirmRecoveryKey');
+        elements.useRecoveryKeyBtn = document.getElementById('useRecoveryKeyBtn');
+        elements.recoveryUnlockModal = document.getElementById('recoveryUnlockModal');
+        elements.closeRecoveryUnlock = document.getElementById('closeRecoveryUnlock');
+        elements.recoveryUnlockForm = document.getElementById('recoveryUnlockForm');
+        elements.recoveryKeyInput = document.getElementById('recoveryKeyInput');
+
+        // QR transfer elements
+        elements.showQrBtn = document.getElementById('showQrBtn');
+        elements.scanQrBtn = document.getElementById('scanQrBtn');
+        elements.qrDisplayModal = document.getElementById('qrDisplayModal');
+        elements.closeQrDisplay = document.getElementById('closeQrDisplay');
+        elements.qrCanvas = document.getElementById('qrCanvas');
+        elements.qrPagination = document.getElementById('qrPagination');
+        elements.qrPrev = document.getElementById('qrPrev');
+        elements.qrNext = document.getElementById('qrNext');
+        elements.qrPageInfo = document.getElementById('qrPageInfo');
+        elements.qrDisplayTitle = document.getElementById('qrDisplayTitle');
+        elements.qrScanModal = document.getElementById('qrScanModal');
+        elements.closeQrScan = document.getElementById('closeQrScan');
+        elements.qrVideo = document.getElementById('qrVideo');
+        elements.qrScanStatus = document.getElementById('qrScanStatus');
+        elements.qrScanProgress = document.getElementById('qrScanProgress');
+        elements.qrProgressBar = document.getElementById('qrProgressBar');
+        elements.qrChunkInfo = document.getElementById('qrChunkInfo');
+        elements.qrScanFallback = document.getElementById('qrScanFallback');
+        elements.qrScanContainer = document.getElementById('qrScanContainer');
+>>>>>>> Stashed changes
+
+Conflict 2:
+UPSTREAM (My Logic):
+                    btn.innerHTML = eyeClosed;
+                } else {
+                    target.type = 'password';
+                    btn.innerHTML = eyeOpen;
+
+=======
+                    btn.innerHTML = ICONS.eyeOff;
+                } else {
+                    target.type = 'password';
+                    btn.innerHTML = ICONS.eye;
+>>>>>>> Stashed changes
+
+Conflict 3:
+UPSTREAM (My Logic):
+
+        // Block submission during active lockout
+        if (Lockout.isLocked()) {
+            Lockout.startCountdown(elements.lockoutMessage, elements.unlockSubmitBtn);
+            return;
+        }
+
+        const password = elements.masterKeyUnlock.value;
+        // Show loading state while Argon2id hashes (can take ~1s)
+        elements.unlockSubmitBtn.textContent = 'Unlocking…';
+        elements.unlockSubmitBtn.disabled = true;
+
+=======
+        const username = elements.usernameUnlock.value.trim();
+        const password = elements.masterKeyUnlock.value;
+
+        if (!username) return showToast('Username is required', 'error');
+
+        const storedUsername = Vault.getUsername();
+        if (storedUsername && username !== storedUsername) {
+            elements.unlockError.classList.remove('hidden');
+            elements.masterKeyUnlock.value = '';
+            return;
+        }
+>>>>>>> Stashed changes
+
+Conflict 4:
+UPSTREAM (My Logic):
+        elements.breachCheckBtn.textContent = 'Checking...';
+        elements.breachCheckBtn.disabled = true;
+        elements.breachResult.classList.add('hidden');
+
+=======
+        btn.innerHTML = ICONS.search + ' Checking...';
+        btn.disabled = true;
+        resultEl.classList.add('hidden');
+>>>>>>> Stashed changes
+
+Conflict 5:
+UPSTREAM (My Logic):
+                elements.breachResult.textContent = `Found in ${count.toLocaleString()} known breaches — avoid using this password`;
+                elements.breachResult.className = 'breach-result breach-bad';
+            } else {
+                elements.breachResult.textContent = 'Not found in any known breaches';
+                elements.breachResult.className = 'breach-result breach-good';
+            }
+        } catch {
+            elements.breachResult.classList.remove('hidden');
+            elements.breachResult.textContent = 'Could not reach breach database — check your connection';
+            elements.breachResult.className = 'breach-result breach-warn';
+        } finally {
+            elements.breachCheckBtn.textContent = 'Check for data breaches';
+            elements.breachCheckBtn.disabled = false;
+
+=======
+                resultEl.textContent = `Found in ${count.toLocaleString()} breaches`;
+                resultEl.className = 'breach-result breach-bad';
+            } else {
+                resultEl.textContent = 'Not found in known breaches';
+                resultEl.className = 'breach-result breach-good';
+            }
+        } catch {
+            resultEl.classList.remove('hidden');
+            resultEl.textContent = 'Could not reach breach API';
+            resultEl.className = 'breach-result breach-warn';
+        } finally {
+            btn.innerHTML = ICONS.search + ' Check for data breaches';
+            btn.disabled = false;
+>>>>>>> Stashed changes
+
+Conflict 6:
+UPSTREAM (My Logic):
+    // Stores last breach scan results so re-visiting Health tab shows them
+    let _lastBreachResults = null;
+
+=======
+    function isAging(timestamp) {
+        if (!timestamp) return false;
+        const age = Date.now() - timestamp;
+        return age > 60 * 86400000 && age <= 90 * 86400000;
+    }
+>>>>>>> Stashed changes
+
+Conflict 7:
+UPSTREAM (My Logic):
+        const old  = all.filter(c => isOld(c.updatedAt));
+
+=======
+        const old = all.filter(c => isOld(c.updatedAt));
+        const aging = all.filter(c => isAging(c.updatedAt));
+>>>>>>> Stashed changes
+
+Conflict 8:
+UPSTREAM (My Logic):
+        // Breached credentials from last scan (null = not scanned yet)
+        const breached = _lastBreachResults
+            ? all.filter(c => (_lastBreachResults[c.password] || 0) > 0)
+            : null;
+
+        const breachedCount = breached ? breached.length : 0;
+        const score = Math.max(0, 100
+            - (weak.length     * 15)
+            - (reused.length   * 10)
+            - (old.length      *  5)
+            - (breachedCount   * 20)
+        );
+
+        // Breach stat cell varies by scan state
+        const breachStatContent = _lastBreachResults === null
+            ? `<div class="health-stat" id="breachStatCell">
+                   <div class="health-stat-number breach-unscan">?</div>
+                   <div class="health-stat-label">Breached</div>
+               </div>`
+            : `<div class="health-stat ${breachedCount > 0 ? 'danger' : 'good'}" id="breachStatCell">
+                   <div class="health-stat-number">${breachedCount}</div>
+                   <div class="health-stat-label">Breached</div>
+               </div>`;
+
+=======
+        // Run breach checks for all passwords
+        let breachedList = [];
+        try {
+            const breachChecks = await Promise.allSettled(all.map(async (c) => {
+                const hash = await sha1Hex(c.password);
+                const prefix = hash.substring(0, 5);
+                const suffix = hash.substring(5);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+                let response;
+                try {
+                    response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, { signal: controller.signal });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+                if (!response.ok) return { cred: c, count: 0 };
+                const text = await response.text();
+                let count = 0;
+                for (const line of text.split('\n')) {
+                    const [h, cnt] = line.split(':');
+                    if (h.trim() === suffix) {
+                        count = parseInt(cnt.trim());
+                        break;
+                    }
+                }
+                return { cred: c, count };
+            }));
+            breachedList = breachChecks
+                .filter(r => r.status === 'fulfilled' && r.value.count > 0)
+                .map(r => ({ ...r.value.cred, breachCount: r.value.count }));
+        } catch {
+            // Breach check failed silently
+        }
+
+        const score = Math.max(0, 100 - (weak.length * 15) - (reused.length * 10) - (old.length * 5) - (breachedList.length * 20) - (aging.length * 3));
+>>>>>>> Stashed changes
+
+--- web/style.css --- (8 conflicts)
+
+Conflict 1:
+UPSTREAM (My Logic):
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.empty-icon { font-size: 2.5rem; display: block; margin-bottom: var(--spacing-md); }
+.empty-state h2 { font-size: 1.05rem; color: var(--text-secondary); margin-bottom: var(--spacing-sm); word-break: break-word; }
+.empty-state p  { font-size: 0.82rem; word-break: break-word; padding: 0 var(--spacing-sm); }
+
+=======
+    grid-column: 1 / -1;
+}
+
+.empty-icon {
+    display: flex; justify-content: center;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-muted);
+}
+
+.empty-state h2 { font-size: 1.2rem; color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
+.empty-state p  { font-size: 0.9rem; }
+>>>>>>> Stashed changes
+
+Conflict 2:
+UPSTREAM (My Logic):
+
+=======
+    .app-container {
+        display: block;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+
+>>>>>>> Stashed changes
+
+Conflict 3:
+UPSTREAM (My Logic):
+        min-height: calc(100vh - var(--mobile-header-height));
+        padding: var(--spacing-md);
+        align-items: flex-start;
+        padding-top: var(--spacing-xl);
+
+=======
+        position: fixed;
+        inset: 0;
+        z-index: 150;
+        min-height: 0;
+        padding: 0;
+        align-items: stretch;
+        justify-content: stretch;
+        background: var(--bg-primary);
+>>>>>>> Stashed changes
+
+Conflict 4:
+UPSTREAM (My Logic):
+
+=======
+    .view-header h1 { font-size: 1.35rem; }
+>>>>>>> Stashed changes
+
+Conflict 5:
+UPSTREAM (My Logic):
+    /* Credential card compact */
+    .credential-card { padding: var(--spacing-sm) var(--spacing-md); }
+    .credential-icon { width: 34px; height: 34px; font-size: 0.78rem; }
+
+    /* Actions row: smaller buttons */
+    .credential-actions { gap: 2px; }
+    .icon-btn { width: 30px; height: 30px; font-size: 0.8rem; }
+
+=======
+    /* Credential cards single column */
+    .credentials-list { grid-template-columns: 1fr; }
+    .notes-list { grid-template-columns: 1fr; }
+
+    /* Credential card compact */
+    .credential-card {
+        padding: var(--spacing-md);
+        flex-wrap: wrap;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    .credential-icon { width: 38px; height: 38px; font-size: 0.82rem; }
+    .credential-info { min-width: 0; overflow: hidden; }
+    .credential-site { font-size: 0.9rem; }
+    .credential-site-row { overflow: hidden; }
+
+    /* Actions row */
+    .credential-actions {
+        gap: 4px;
+        flex-basis: 100%;
+        justify-content: flex-end;
+        margin-top: var(--spacing-xs);
+    }
+    .icon-btn { width: 34px; height: 34px; font-size: 0.8rem; }
+>>>>>>> Stashed changes
+
+Conflict 6:
+UPSTREAM (My Logic):
+    /* Modals */
+    .modal { max-height: 85vh; padding: var(--spacing-lg); border-radius: var(--radius-md); }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    .modal { border-bottom-left-radius: 0; border-bottom-right-radius: 0; max-width: 100%; }
+
+=======
+    /* Modals — bottom sheet style */
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    .modal {
+        max-height: 85vh;
+        padding: var(--spacing-xl);
+        padding-bottom: calc(var(--spacing-xl) + env(safe-area-inset-bottom));
+        border-radius: var(--radius-lg);
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        max-width: 100%;
+    }
+
+    /* Generated password display */
+    .generated-password-display { flex-wrap: nowrap; overflow: hidden; }
+    .generated-password-display input { min-width: 0; height: 48px; }
+>>>>>>> Stashed changes
+
+Conflict 7:
+UPSTREAM (My Logic):
+    /* Health stats 2 cols */
+
+=======
+    /* Generator compact */
+    .generator-controls, .generator-output { gap: var(--spacing-sm); }
+    .gen-modes { margin-bottom: 0; }
+    .gen-mode-btn { padding: var(--spacing-sm) var(--spacing-xs); font-size: 0.82rem; }
+    .generator-options { gap: var(--spacing-sm); }
+    .option-group { gap: 2px; }
+    .option-group label { font-size: 0.82rem; }
+    .checkbox-options { grid-template-columns: 1fr 1fr; gap: var(--spacing-xs); }
+    .checkbox-label { padding: 6px var(--spacing-sm); font-size: 0.82rem; }
+    .generated-password-display input { height: 44px; font-size: 0.88rem; }
+    .security-metrics { gap: var(--spacing-xs); }
+    .metric { padding: var(--spacing-sm); border-radius: var(--radius-md); }
+    .metric-label { font-size: 0.65rem; margin-bottom: 2px; }
+    .metric-value { font-size: 0.88rem; }
+    .view-subtitle { font-size: 0.82rem; }
+
+    /* Analyzer compact */
+    .analyzer-main { gap: var(--spacing-sm); }
+    .rules-checklist { gap: var(--spacing-xs); }
+    .rule { font-size: 0.78rem; padding: 5px var(--spacing-sm); border-radius: var(--radius-sm); }
+    .strength-bar { height: 6px; }
+    .strength-label { font-size: 0.82rem; }
+
+    /* Health view */
+    .health-score-card { flex-direction: column; gap: var(--spacing-md); }
+    .health-score-info { text-align: center; }
+    .health-score-number { font-size: 3rem; }
+
+>>>>>>> Stashed changes
+
+Conflict 8:
+UPSTREAM (My Logic):
+    .checkbox-options { grid-template-columns: 1fr; }
+
+=======
+    .health-issue-item { flex-wrap: wrap; }
+
+    /* Breach check row */
+    .breach-check-row { flex-direction: column; align-items: flex-start; }
+
+    /* Optional fields */
+    .optional-fields { max-width: 100%; overflow: hidden; }
+
+    /* Landing buttons */
+    .landing-btn-text strong { font-size: 0.95rem; }
+    .landing-btn-text small { font-size: 0.78rem; }
+    .landing-btn { gap: var(--spacing-sm); padding: var(--spacing-md); }
+
+    /* Buttons & inputs compact */
+    .btn { height: 44px; font-size: 0.85rem; }
+    input[type="text"],
+    input[type="password"],
+    input[type="url"],
+    input[type="email"],
+    select { height: 44px; padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.85rem; }
+
+    /* View header compact */
+    .view-header { margin-bottom: var(--spacing-md); }
+    .view-header h1 { font-size: 1.2rem; }
+}
+
+/* ============================================
+   Very small screens (<=360px)
+   ============================================ */
+@media (max-width: 360px) {
+    .main-content { padding-left: var(--spacing-sm); padding-right: var(--spacing-sm); }
+    .credential-card { padding: var(--spacing-sm); gap: var(--spacing-sm); }
+    .credential-icon { width: 32px; height: 32px; font-size: 0.72rem; }
+    .icon-btn { width: 30px; height: 30px; }
+    .modal { padding: var(--spacing-md); }
+    .auth-card, .landing-card { padding: var(--spacing-md); }
+    .security-metrics { grid-template-columns: 1fr; }
+    .metric.highlight { grid-column: auto; }
+    .health-stats { grid-template-columns: 1fr; }
+>>>>>>> Stashed changes
