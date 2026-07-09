@@ -1,0 +1,27 @@
+# Maintainer: Dreadonyx <dreadonyx@proton.me>
+pkgname=safekey
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="SafeKey - Local-only encrypted password manager. No cloud, no syncing."
+arch=('x86_64')
+url="https://github.com/Dreadonyx/SafeKey"
+license=('MIT')
+depends=('webkit2gtk-4.1' 'gtk3' 'libsoup3')
+optdepends=('xdg-utils: for opening URLs')
+provides=('safekey')
+conflicts=('safekey')
+source=()
+sha256sums=()
+
+package() {
+    # Binary
+    install -Dm755 "$srcdir/safekey" "$pkgdir/usr/bin/safekey"
+    
+    # Desktop entry
+    install -Dm644 "$srcdir/safekey.desktop" "$pkgdir/usr/share/applications/safekey.desktop"
+    
+    # Icons
+    install -Dm644 "$srcdir/icon-128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/safekey.png"
+    install -Dm644 "$srcdir/icon-256x256.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/safekey.png"
+    install -Dm644 "$srcdir/icon-32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/safekey.png"
+}

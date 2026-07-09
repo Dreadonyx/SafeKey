@@ -1,0 +1,23 @@
+{
+  "name": "safekey",
+  "version": "1.0.0",
+  "description": "SafeKey - Local-only encrypted password manager",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:android:init": "tauri android init",
+    "tauri:android:dev": "tauri android dev",
+    "tauri:android:build": "tauri android build",
+    "tauri:android:apk": "tauri android build --apk",
+    "tauri:linux:build": "tauri build --target x86_64-unknown-linux-gnu",
+    "tauri:linux:deb": "tauri build --bundles deb",
+    "tauri:linux:appimage": "tauri build --bundles appimage",
+    "tauri:linux:pacman": "tauri build --bundles pacman",
+    "tauri:windows:build": "tauri build --target x86_64-pc-windows-msvc"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

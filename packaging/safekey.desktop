@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=SafeKey
+Comment=Local-only encrypted password manager
+Exec=safekey
+Icon=safekey
+Terminal=false
+Type=Application
+Categories=Utility;Security;
+Keywords=password;vault;security;encryption;manager;
+StartupWMClass=SafeKey

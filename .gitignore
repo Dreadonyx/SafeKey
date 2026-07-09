@@ -3,3 +3,5 @@ src-tauri/gen/
 .playwright-mcp/
 .codegraph/
 *.keystore
+node_modules/
+dist/
